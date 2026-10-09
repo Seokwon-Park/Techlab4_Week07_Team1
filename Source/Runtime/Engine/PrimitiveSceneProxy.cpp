@@ -1,7 +1,7 @@
 #include "EnginePCH.h"
 #include "PrimitiveSceneProxy.h"
-#include "Component/PrimitiveComponent.h"
-#include "Component/StaticMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Render/Mesh.h"
 #include "Engine/Scene.h"
 

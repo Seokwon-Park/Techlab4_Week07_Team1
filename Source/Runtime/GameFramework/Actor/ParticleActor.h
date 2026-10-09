@@ -1,7 +1,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Component/ParticleSubUVComponent.h"
+#include "Components/ParticleSubUVComponent.h"
 
 // Todo: subuv
 class AParticleActor : public AActor

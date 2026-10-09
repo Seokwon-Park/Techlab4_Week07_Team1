@@ -4,8 +4,8 @@
 #include "Engine/Level.h"
 #include "Engine/World.h"
 
-#include "Component/ActorComponent.h"
-#include "Component/PrimitiveComponent.h"
+#include "Components/ActorComponent.h"
+#include "Components/PrimitiveComponent.h"
 
 bool FOutlinerPanel::Init()
 {

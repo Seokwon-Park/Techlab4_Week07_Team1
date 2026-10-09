@@ -3,7 +3,7 @@
 
 #include "Engine/World.h"
 #include "Engine/Level.h"
-#include "Component/PrimitiveComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectHash.h"
 #include "GameFramework/Actor/StaticMeshActor.h"

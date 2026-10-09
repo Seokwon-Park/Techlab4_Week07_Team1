@@ -1,7 +1,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Component/TextRenderComponent.h"
+#include "Components/TextRenderComponent.h"
 
 class ATextRenderActor : public AActor
 {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Component/BillboardComponent.h"
+#include "Components/BillboardComponent.h"
 
 class ABillboardActor : public AActor
 {

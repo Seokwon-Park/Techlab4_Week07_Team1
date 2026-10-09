@@ -1,9 +1,9 @@
 ﻿#pragma once
 
 #include "PrimitiveSceneProxy.h"
-#include "Component/BillboardComponent.h"
-#include "Component/PrimitiveComponent.h"
-#include "Component/FireBallComponent.h"
+#include "Components/BillboardComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/FireBallComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"

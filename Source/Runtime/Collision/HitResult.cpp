@@ -1,2 +1,2 @@
 #include "EnginePCH.h"
-#include "Component/PrimitiveComponent.h"
+#include "Components/PrimitiveComponent.h"

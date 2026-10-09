@@ -1,7 +1,7 @@
 #include "EnginePCH.h"
 #include "StaticMeshActor.h"
 
-#include "Component/PrimitiveComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Asset/AssetManager.h"
 
 AStaticMeshActor::AStaticMeshActor()

@@ -12,10 +12,10 @@
 #include "UObject/UObjectIterator.h"
 
 #include "Collision/Ray.h"
-#include "Component/BillboardComponent.h"
-#include "Component/ExponentialHeightFogComponent.h"
+#include "Components/BillboardComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 
-#include "Component/StaticMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
 #include "Math/Frustum.h"

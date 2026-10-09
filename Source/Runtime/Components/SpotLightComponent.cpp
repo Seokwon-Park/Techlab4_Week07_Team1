@@ -1,5 +1,5 @@
 #include "EnginePCH.h"
-#include "Component/SpotLightComponent.h"
+#include "Components/SpotLightComponent.h"
 
 #include "Render/LineBatcher.h"
 

@@ -2,7 +2,7 @@
 #include "EngineBaseTypes.h"
 
 #include "GameFramework/Actor.h"
-#include "Component/ActorComponent.h"
+#include "Components/ActorComponent.h"
 
 void FTickFunction::RegisterTickFunction(FTickTaskManager& InManager)
 {

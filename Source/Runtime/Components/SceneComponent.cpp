@@ -1,5 +1,5 @@
 #include "EnginePCH.h"
-#include "Component/SceneComponent.h"
+#include "Components/SceneComponent.h"
 
 #include "GameFramework/Actor.h"
 

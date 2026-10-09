@@ -2,9 +2,9 @@
 #include "Actor.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
-#include "Component/SceneComponent.h"
-#include "Component/ParticleSubUVComponent.h"
-#include "Component/ExponentialHeightFogComponent.h"
+#include "Components/SceneComponent.h"
+#include "Components/ParticleSubUVComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Core/EngineLog.h"
 #include "UObject/Object.h"
 

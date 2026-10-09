@@ -1,5 +1,5 @@
 #include "EnginePCH.h"
-#include "Component/ParticleSubUVComponent.h"
+#include "Components/ParticleSubUVComponent.h"
 #include "Asset/AssetManager.h"
 #include "Render/RenderCommand.h"
 

@@ -73,8 +73,9 @@ public:
 	FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld);
 	void DestroyWorldContext(UWorld* InWorld);
 
-	UAssetManager* AssetManager;
 protected:
+	UAssetManager* AssetManager;
+
 	FEngineLoop& GetEngineLoop() const { return *EngineLoop; }
 
 	TIndirectArray<FWorldContext> WorldList;

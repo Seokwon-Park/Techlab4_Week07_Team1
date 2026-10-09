@@ -1,8 +1,8 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Component/BillboardComponent.h"
-#include "Component/ExponentialHeightFogComponent.h"
+#include "Components/BillboardComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 
 
 class AExponentialHeightFogActor final : public AActor

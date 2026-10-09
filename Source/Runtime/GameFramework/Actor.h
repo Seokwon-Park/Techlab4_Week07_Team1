@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "Component/PrimitiveComponent.h"
+#include "Components/PrimitiveComponent.h"
 
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"

@@ -1,9 +1,9 @@
 #pragma once
 #include "GameFramework/Actor.h"
-#include "Component/FireBallComponent.h"
-#include "Component/StaticMeshComponent.h"
-#include "Component/RotatingMovementComponent.h"
-#include "Component/ProjectileMovementComponent.h"
+#include "Components/FireBallComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/RotatingMovementComponent.h"
+#include "Components/ProjectileMovementComponent.h"
 
 class AFireBallActor : public AActor
 {

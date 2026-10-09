@@ -1,6 +1,6 @@
 #include "EnginePCH.h"
 #include "LineBatcher.h"
-#include "Component/PrimitiveComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 
 #include "RenderCommand.h"
