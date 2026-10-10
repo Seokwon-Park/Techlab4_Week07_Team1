@@ -4,5 +4,5 @@
 ADirectionalLightActor::ADirectionalLightActor()
 {
     DirectionalLightComponent = CreateDefaultSubobject<UDirectionalLightComponent>("UDirectionalLightComponent");
-	SetRootComponent(DirectionalLightComponent);
+	SetupLightRoot(DirectionalLightComponent);
 }

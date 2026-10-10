@@ -8,6 +8,10 @@
 #include "GameFramework/Actor/LightActorBase.h"
 #include "GameFramework/Actor/TextRenderActor.h"
 #include "GameFramework/Actor/FireBallActor.h"
+#include "GameFramework/Actor/RectLightActor.h"
+#include "GameFramework/Actor/SpotLightActor.h"
+#include "GameFramework/Actor/PointLightActor.h"
+#include "GameFramework/Actor/DirectionalLightActor.h"
 #include "GameFramework/Actor/ExponentialHeightFogActor.h"
 
 class FMultipleViewportsAdapter;
@@ -46,6 +50,10 @@ public:
 		AStaticMeshActor::StaticClass(),  
 		AParticleActor::StaticClass(),
 		ATextRenderActor::StaticClass(),
+		ADirectionalLightActor::StaticClass(),
+		APointLightActor::StaticClass(),
+		ARectLightActor::StaticClass(),
+		ASpotLightActor::StaticClass(),
 		AExponentialHeightFogActor::StaticClass(),
 		AFireBallActor::StaticClass()
 	};

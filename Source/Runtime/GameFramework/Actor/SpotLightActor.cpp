@@ -4,5 +4,5 @@
 ASpotLightActor::ASpotLightActor()
 {
     SpotLightComponent = CreateDefaultSubobject<USpotLightComponent>("USpotLightComponent");
-	SetRootComponent(SpotLightComponent);
+	SetupLightRoot(SpotLightComponent);
 }

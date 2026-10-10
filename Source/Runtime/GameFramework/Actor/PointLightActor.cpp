@@ -4,5 +4,5 @@
 APointLightActor::APointLightActor()
 {
     PointLightComponent = CreateDefaultSubobject<UPointLightComponent>("UPointLightComponent");
-	SetRootComponent(PointLightComponent);
+	SetupLightRoot(PointLightComponent);
 }

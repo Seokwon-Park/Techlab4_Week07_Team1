@@ -642,9 +642,9 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
 		if (Gizmo->GetTarget())
 		{
-			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
+			if (ALightActorBase* LightActor = Cast<ALightActorBase>(Gizmo->GetTarget()->GetOwner()))
 			{
-				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
+				LightActor->GetLightComponent()->DrawDebug(LineBatcher.get());
 			}
 		}
 

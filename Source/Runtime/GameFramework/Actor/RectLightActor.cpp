@@ -4,5 +4,5 @@
 ARectLightActor::ARectLightActor()
 {
     RectLightComponent = CreateDefaultSubobject<URectLightComponent>("URectLightComponent");
-	SetRootComponent(RectLightComponent);
+	SetupLightRoot(RectLightComponent);
 }

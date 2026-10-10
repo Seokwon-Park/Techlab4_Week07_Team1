@@ -2,8 +2,12 @@
 
 #include "LightActorBase.h"
 
-ALightActorBase::ALightActorBase()
+ALightActorBase::ALightActorBase() {}
+
+void ALightActorBase::SetupLightRoot(ULightComponent* LightComponent)
 {
+    SetRootComponent(LightComponent);
+
     BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
-	BillboardComponent->SetupAttachment(GetRootComponent());
+    BillboardComponent->SetupAttachment(LightComponent);
 }
