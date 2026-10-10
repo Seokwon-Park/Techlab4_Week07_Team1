@@ -1,11 +1,7 @@
 #include "EnginePCH.h"
 #include "DirectionalLightComponent.h"
 
-UDirctionalLightComponent::UDirctionalLightComponent()
-{
+UDirectionalLightComponent::UDirectionalLightComponent() {}
+UDirectionalLightComponent::~UDirectionalLightComponent() {}
 
-}
 
-UDirctionalLightComponent::~UDirctionalLightComponent()
-{
-}

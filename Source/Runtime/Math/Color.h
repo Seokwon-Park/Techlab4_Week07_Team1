@@ -15,6 +15,11 @@ struct FColor
 
 	FColor() = default;
 
+	FVector4 ToVector4(const FColor& C)
+	{
+		return FVector4(C.R / 255.0f, C.G / 255.0f, C.B / 255.0f, C.A / 255.0f);
+	}
+
 	//FColor(EForceInit);
 	FColor(uint32 InColor);
 	constexpr FColor(uint8 InR, uint8 InG, uint8 InB, uint8 InA);

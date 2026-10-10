@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d11.h>
+#include "Math/Color.h"
 
 struct FVertex
 {

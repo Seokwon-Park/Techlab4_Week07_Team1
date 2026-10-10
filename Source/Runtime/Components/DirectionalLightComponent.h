@@ -2,14 +2,17 @@
 
 #include "LightComponent.h"
 
-class UDirctionalLightComponent :public ULightComponent
+class UDirectionalLightComponent :public ULightComponent
 {
-	DECLARE_CLASS(UDirctionalLightComponent, ULightComponent)
-	REFLECT_START(UDirctionalLightComponent)
+	DECLARE_CLASS(UDirectionalLightComponent, ULightComponent)
+	REFLECT_START(UDirectionalLightComponent)
 	REFLECT_END()
 public:
-	UDirctionalLightComponent();
-	virtual ~UDirctionalLightComponent() override;
+	UDirectionalLightComponent();
+	virtual ~UDirectionalLightComponent() override;
+
+	ELightType GetLightType() const { return ELightType::Directional; }
+	FVector GetDirection() const { return GetTransform().GetForward(); }
 
 private:
 };

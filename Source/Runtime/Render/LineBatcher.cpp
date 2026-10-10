@@ -55,7 +55,7 @@ void FLineBatcher::BeginFrame()
 	VertexCount = 0;
 }
 
-void FLineBatcher::AddLine(const FVector& A, const FVector& B, const FVector4& Color)
+void FLineBatcher::AddLine(const FVector& A, const FVector& B, const FColor& Color)
 {
 	if (VertexCount + 2 > MaxVertices)
 		return;   // 넘치면 버림
