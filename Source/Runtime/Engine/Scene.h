@@ -42,6 +42,9 @@ public:
 	TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
 	TArray<FPrimitiveSceneProxy*> RenderStateDirtyProxies;
+
+
+	
 	TArray<FAABB> PrimitiveBounds;
 	TArray<uint8> PrimitiveFlags;
 	

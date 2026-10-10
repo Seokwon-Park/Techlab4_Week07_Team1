@@ -1,14 +1,50 @@
 #include "EnginePCH.h"
 #include "LightActor.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/RectLightComponent.h"
 
 ALightActor::ALightActor()
-{
-	BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
-	BillboardComponent->SetupAttachment(GetRootComponent());
+	: ALightActor{ ELightType::Spot } {
+}
 
-	// 아이콘용 메시/머티리얼. Plane은 FVertex 포맷이라 DefaultShader로 그대로 그려진다.
-	// 라이트 아이콘 텍스처가 준비되면 Property 창에서 머티리얼 슬롯에 끼우면 된다.
+ALightActor::ALightActor(ELightType InLightType) {
+	mBillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
+	mBillboardComponent->SetupAttachment(GetRootComponent());
 
-	SpotLightComponent = CreateDefaultSubobject<USpotLightComponent>("USpotLightComponent");
-	SpotLightComponent->SetupAttachment(GetRootComponent());
+	switch (InLightType) {
+	case ELightType::Directional:
+		mLightComponent = CreateDefaultSubobject<UDirectionalLightComponent>("UDirectionalLightComponent");
+		break;
+	case ELightType::Point:
+		mLightComponent = CreateDefaultSubobject<UPointLightComponent>("UPointLightComponent");
+		break;
+	case ELightType::Rect:
+		mLightComponent = CreateDefaultSubobject<URectLightComponent>("URectLightComponent");
+		break;
+	case ELightType::Spot:
+	default:
+		mLightComponent = CreateDefaultSubobject<USpotLightComponent>("USpotLightComponent");
+		break;
+	}
+
+	mLightComponent->SetupAttachment(GetRootComponent());
+}
+
+ALightActor::~ALightActor() = default;
+
+void ALightActor::RegisterProperties(UClass* InClass) {
+	InClass->AddProperty<UBillboardComponent*>("BillboardComponent", offsetof(ALightActor, mBillboardComponent), CPF_VisibleAnywhere);
+	InClass->AddProperty<ULightComponent*>("LightComponent", offsetof(ALightActor, mLightComponent), CPF_VisibleAnywhere);
+}
+
+UBillboardComponent* ALightActor::GetBillboardComponent() const {
+	return mBillboardComponent;
+}
+
+ULightComponent* ALightActor::GetLightComponent() const {
+	return mLightComponent;
+}
+
+ULightComponent* ALightActor::GetSpotLightComponent() const {
+	return mLightComponent;
 }
