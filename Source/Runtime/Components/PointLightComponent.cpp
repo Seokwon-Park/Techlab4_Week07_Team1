@@ -1,12 +1,45 @@
 #include "EnginePCH.h"
 #include "PointLightComponent.h"
 
+#include "Render/LineBatcher.h"
+
 UPointLightComponent::UPointLightComponent() : LightFalloffExponent(1.0f) {}
 UPointLightComponent::~UPointLightComponent() {}
 
+namespace
+{
+    constexpr int32 SPHERE_SEGMENT_COUNT = 32;
+
+    void AddWireSphere(
+        FLineBatcher* LineBatcher,
+        const FVector& Center,
+        const FVector& AxisA,
+        const FVector& AxisB,
+        float Radius,
+        const FVector4& Color
+    )
+    {
+        FVector Prev = Center + AxisA * Radius;
+        for (int32 i = 1; i < SPHERE_SEGMENT_COUNT; ++i)
+        {
+            const float Angle = 2 * PI * i / SPHERE_SEGMENT_COUNT;
+            const FVector Point = Center + AxisA * (std::cosf(Angle)*Radius) + AxisB * (std::sinf(Angle)*Radius);
+            LineBatcher->AddLine(Prev, Point, Color);
+            Prev = Point;
+        }
+    }
+
+}
+
 void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const 
 {
-    // 월드 위치 중심, AttenuationRadius 반경의 원 3개(XY, XZ, YZ)
-    // LineBatcher->AddLine SpotLight 참고
-    
+    // AttenuationRadius 반경의 원 3개(XY, XZ, YZ)
+    if (LineBatcher == nullptr) return;
+
+    const FVector Center = GetWorldLocation();
+    float Radius = (GetAttenuationRadius() > 0.0f)? GetAttenuationRadius() : 0.0f;
+
+    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,0,1), Radius, GetLightColor().ToVector4());
+    AddWireSphere(LineBatcher, Center, FVector(0,1,0), FVector(0,0,1), Radius, GetLightColor().ToVector4());
+    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,1,0), Radius, GetLightColor().ToVector4());
 }

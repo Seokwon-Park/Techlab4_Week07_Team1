@@ -22,7 +22,7 @@ namespace
 		const FVector& Up,
 		float HalfAngleDegrees,
 		float Range,
-		const FColor& Color)
+		const FVector4& Color)
 	{
 		const float HalfAngle = FMath::DegreesToRadians(HalfAngleDegrees);
 		const float BaseRadius = std::tanf(HalfAngle) * Range;
@@ -92,9 +92,9 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 	const float SafeRadius = (GetAttenuationRadius() > 0.0f) ? GetAttenuationRadius() : 0.0f;
 
 	// 바깥 원뿔은 라이트 색 그대로, 안쪽은 구분되도록 흐리게
-	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeOuterAngle, SafeRadius, GetLightColor());
+	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeOuterAngle, SafeRadius, GetLightColor().ToVector4());
 
 	FColor InnerColor(GetLightColor().R * 0.5f, GetLightColor().G * 0.5f, GetLightColor().B * 0.5f, GetLightColor().A);
 
-	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
+	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor.ToVector4());
 }

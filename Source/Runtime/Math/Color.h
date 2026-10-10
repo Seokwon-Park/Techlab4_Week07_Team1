@@ -15,14 +15,15 @@ struct FColor
 
 	FColor() = default;
 
-	FVector4 ToVector4(const FColor& C)
+	FVector4 ToVector4() const
 	{
-		return FVector4(C.R / 255.0f, C.G / 255.0f, C.B / 255.0f, C.A / 255.0f);
+		return FVector4(R / 255.0f, G / 255.0f, B / 255.0f, A / 255.0f);
 	}
 
 	//FColor(EForceInit);
-	FColor(uint32 InColor);
-	constexpr FColor(uint8 InR, uint8 InG, uint8 InB, uint8 InA);
+	constexpr FColor(uint32 InColor) : Bits(InColor) {}
+	constexpr FColor(uint8 InR, uint8 InG, uint8 InB, uint8 InA)
+		: R(InR), G(InG), B(InB), A(InA) {}
 	//FColor(const FLinearColor& LinearColor);
 
 	uint32& DWColor(void) { return Bits; }
