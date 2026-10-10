@@ -7,6 +7,7 @@
 
 #include "Engine/PrimitiveSceneProxy.h"
 #include "Engine/Scene.h"
+#include "Engine/World.h"
 
 namespace
 {
@@ -112,6 +113,18 @@ bool UPrimitiveComponent::MoveComponent(const FVector& Delta, const FRotator& Ne
 	}
 
 	return true;
+}
+
+void UPrimitiveComponent::CreateRenderState()
+{
+	Super::CreateRenderState();
+	GetWorld()->GetScene().AddPrimitive(this);
+}
+
+void UPrimitiveComponent::DestroyRenderState()
+{
+	GetWorld()->GetScene().RemovePrimitive(this);
+	Super::DestroyRenderState();
 }
 
 bool UPrimitiveComponent::TraceMesh(const FRay& WorldRay, const FStaticMeshData& Mesh, const FMatrix& WorldMatrix, FHitResult& OutResult)

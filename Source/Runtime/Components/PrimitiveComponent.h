@@ -28,7 +28,7 @@ class UPrimitiveComponent :public USceneComponent
 	// (빌보드는 단일 머티리얼, 스태틱 메시는 슬롯별 덮어쓰기) 각자 등록한다.
 	REFLECT_START(ClassName)
 		PROPERTY(bVisible)
-	REFLECT_END()
+		REFLECT_END()
 public:
 	UPrimitiveComponent();
 	virtual ~UPrimitiveComponent();
@@ -76,6 +76,15 @@ public:
 	virtual bool MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit = nullptr) override;
 
 protected:
+	virtual bool ShouldCreateRenderState() const override
+	{
+		return true;
+	}
+
+	virtual void CreateRenderState() override;
+	virtual void DestroyRenderState() override;
+
+
 	bool TraceMesh(const FRay& WorldRay, const FStaticMeshData& Mesh, const FMatrix& WorldMatrix, FHitResult& OutResult);
 	bool TraceMeshLocal(const FRay& LocalRay, const FStaticMeshData& Mesh, float& OutT);
 	bool bVisible = true;

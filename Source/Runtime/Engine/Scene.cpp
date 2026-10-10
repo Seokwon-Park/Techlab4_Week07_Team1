@@ -7,12 +7,12 @@ void FScene::AddPrimitive(UPrimitiveComponent* Component)
 
 	FPrimitiveSceneProxy* Proxy = new FPrimitiveSceneProxy(Component);
 	Proxy->Scene = this;
-	Proxy->PackedIndex = Proxies.Num();
+	Proxy->PackedIndex = PrimitiveSceneProxies.Num();
 	Component->SceneProxy = Proxy;
 	MarkDirty(Proxy);
 	MarkRenderStateDirty(Proxy);
 
-	Proxies.Add(Proxy);
+	PrimitiveSceneProxies.Add(Proxy);
 	PrimitiveBounds.Add(FAABB{});
 	PrimitiveFlags.Add(0);
 
@@ -28,12 +28,12 @@ void FScene::RemovePrimitive(UPrimitiveComponent* Component)
 
 	const uint32 Index = static_cast<uint32>(Proxy->PackedIndex);
 
-	Proxies.RemoveAtSwap(Index);
+	PrimitiveSceneProxies.RemoveAtSwap(Index);
 	PrimitiveBounds.RemoveAtSwap(Index);
 	PrimitiveFlags.RemoveAtSwap(Index);
 
-	if (Index < static_cast<uint32>(Proxies.Num()))
-		Proxies[Index]->PackedIndex = static_cast<int32>(Index);
+	if (Index < static_cast<uint32>(PrimitiveSceneProxies.Num()))
+		PrimitiveSceneProxies[Index]->PackedIndex = static_cast<int32>(Index);
 
 	if (Proxy->bQueuedForUpdate)
 	{
@@ -56,13 +56,13 @@ void FScene::RemovePrimitive(UPrimitiveComponent* Component)
 void FScene::RemoveAllPrimitives()
 {
 	// 하나씩 RemovePrimitive하면 대기열 검색(Find)이 물체 수만큼 반복되므로 통째로 비운다.
-	for (FPrimitiveSceneProxy* Proxy : Proxies)
+	for (FPrimitiveSceneProxy* Proxy : PrimitiveSceneProxies)
 	{
 		if (UPrimitiveComponent* Component = Proxy->GetComponent())
 			Component->SceneProxy = nullptr;
 		delete Proxy;
 	}
-	Proxies.Reset();
+	PrimitiveSceneProxies.Reset();
 	PrimitiveBounds.Reset();
 	PrimitiveFlags.Reset();
 	DirtyProxies.Reset();
@@ -181,8 +181,8 @@ void FScene::BuildBVH()
 	// BillboardComponents.Reset();
 
 	TArray<FPrimitiveSceneProxy*> Elements;
-	Elements.Reserve(Proxies.Num());
-	for (FPrimitiveSceneProxy* Proxy : Proxies)
+	Elements.Reserve(PrimitiveSceneProxies.Num());
+	for (FPrimitiveSceneProxy* Proxy : PrimitiveSceneProxies)
 	{
 		if (Proxy && Proxy->GetComponent())
 			Elements.Add(Proxy);
