@@ -208,31 +208,21 @@ void FScene::MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy)
 
 void FScene::UpdateLights(FRenderer* Renderer)
 {
-	if (!Renderer)
-		return;
+	if (!Renderer) return;
 
 	FLightRenderData Data{};
 	FLightConstants Constants{};
 
 	Constants.LightCount = 0;
 
-	// 기본값: 활성 Light 없음
-	Data.PositionRadius = FVector4(0, 0, 0, 0);
-	Data.ColorIntensity = FVector4(0, 0, 0, 0);
-	Data.DirectionType = FVector4(0, 0, 0, 0);
-	Data.Params = FVector4(0, 0, 0, 0);
-	Data.Extent = FVector4(0, 0, 0, 0);
-
 	for (ULightComponent* Light : Lights)
 	{
-		if (Constants.LightCount >= MaxLights)
-		{
-			break; // 최대 Light 수를 초과하면 루프 종료
-		}
+		// 최대 Light 수를 초과하면 루프 종료
+		if (Constants.LightCount >= MaxLights) break; 
+		
+		if (!Light || !Light->IsVisible()) continue;
 
-		if (!Light) continue;
-
-		Constants.Light[Constants.LightCount] = Data;
+		Light->FillLightData(Constants.Light[Constants.LightCount]);
 		Constants.LightCount++;
 	}
 
@@ -255,7 +245,9 @@ void FScene::UnregisterLight(ULightComponent* Light)
 	for (uint32 i = 0; i < Lights.Num(); ++i)
 	{
 		if (Lights[i] == Light)
+		{
 			Lights.RemoveAt(i, 1);
 			return; 
+		}
 	}
 }

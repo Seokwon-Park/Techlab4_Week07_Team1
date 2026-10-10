@@ -3,7 +3,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
-#include "Components/FireBallComponent.h"
 #include "Components/LightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
@@ -52,7 +51,6 @@ public:
 	TArray<uint8> PrimitiveFlags;
 	
 	TArray<FExponentialHeightFogSceneInfo> FogInfos;
-	TArray<FLightSceneInfo> LightInfos;
 
 	// 컬링 결과로 프록시를 바로 내보내 컴포넌트를 역참조하지 않는다. 경계는 Build/Refit 때만 계산한다.
 	TBVH<FPrimitiveSceneProxy*> BVH{
@@ -62,8 +60,6 @@ public:
 			return FBox{ B.Center - B.Extent, B.Center + B.Extent };
 		}
 	};
-	bool bElementListChanged = false;
-	
-	TArray<UFireBallComponent*> FireBallComponents;
+	bool bElementListChanged = false;	
 	TArray<ULightComponent*> Lights;
 };

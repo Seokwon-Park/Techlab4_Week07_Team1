@@ -11,9 +11,8 @@ class UFireBallComponent : public UPointLightComponent
 		REFLECT_END()
 
 public:
-	UFireBallComponent() = default;
+	UFireBallComponent();
 	virtual ~UFireBallComponent() override;
-	void InitializeComponent();
 
 	float GetRadius() const { return Radius; }
 	float GetRadiusFalloff() const { return RadiusFalloff; }
@@ -22,8 +21,5 @@ public:
 	void FillLightData(FLightRenderData& Out) const override;
 
 private:
-	float Intensity = 1.8f;
-	float Radius = 6.5f;
 	float RadiusFalloff = 3.0f;
-	FVector4 LightColor = FVector4(1.0f, 0.0f, 0.8f, 1.0f);
 };

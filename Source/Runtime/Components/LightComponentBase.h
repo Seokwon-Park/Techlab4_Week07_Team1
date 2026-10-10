@@ -10,7 +10,7 @@ class ULightComponentBase : public USceneComponent
 	DECLARE_CLASS(ULightComponentBase, USceneComponent)
 	REFLECT_START(ULightComponentBase)
 		PROPERTY(Intensity)
-		PROPERTY_TYPE(LightColor, Color)
+		// PROPERTY_TYPE(LightColor, Color)
 		PROPERTY(bVisible)
 	REFLECT_END()
 

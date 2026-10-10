@@ -12,7 +12,6 @@ public:
 	virtual ~UDirectionalLightComponent() override;
 
 	ELightType GetLightType() const { return ELightType::Directional; }
-	FVector GetDirection() const { return GetTransform().GetForward(); }
 
 	void FillLightData(FLightRenderData& Out) const override;
 

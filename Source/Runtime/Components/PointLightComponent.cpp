@@ -20,7 +20,7 @@ namespace
     )
     {
         FVector Prev = Center + AxisA * Radius;
-        for (int32 i = 1; i < SPHERE_SEGMENT_COUNT; ++i)
+        for (int32 i = 1; i <= SPHERE_SEGMENT_COUNT; ++i)
         {
             const float Angle = 2 * PI * i / SPHERE_SEGMENT_COUNT;
             const FVector Point = Center + AxisA * (std::cosf(Angle)*Radius) + AxisB * (std::sinf(Angle)*Radius);

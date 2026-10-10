@@ -2,29 +2,14 @@
 #include "FireBallComponent.h"
 #include "Engine/World.h"
 
-void UFireBallComponent::InitializeComponent()
+UFireBallComponent::UFireBallComponent()
 {
-    Super::InitializeComponent();
-
-    if (AActor* Owner = GetOwner())
-    {
-        if (UWorld* World = Owner->GetWorld())
-        {
-            World->GetScene().RegisterFireBall(this);
-        }
-    }
+    SetIntensity(1.8f);
+    SetLightColor(FColor(1.0f, 0.0f, 0.8f, 1.0f));
+    SetAttenuationRadius(6.5f);
 }
 
-UFireBallComponent::~UFireBallComponent()
-{
-    if (AActor* Owner = GetOwner())
-    {
-        if (UWorld* World = Owner->GetWorld())
-        {
-            World->GetScene().UnregisterFireBall(this);
-        }
-    }
-}
+UFireBallComponent::~UFireBallComponent() {}
 
 void UFireBallComponent::FillLightData(FLightRenderData& Out) const
 {
@@ -47,10 +32,7 @@ void UFireBallComponent::FillLightData(FLightRenderData& Out) const
     );
 
     Out.DirectionType = FVector4(
-        std::max<float>(GetRadiusFalloff(), 0.001f),
-        1.0f,
-        0.0f,
-        (float)ELightType::Fireball
+        0, 0, 0, (float)ELightType::Fireball
     );
 
     Out.Params = FVector4(

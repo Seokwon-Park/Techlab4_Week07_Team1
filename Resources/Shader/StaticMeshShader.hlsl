@@ -88,15 +88,17 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
         LightRenderData light = Lights[i];
         float4 PositionRadius = light.PositionRadius;
         float4 ColorIntensity = light.ColorIntensity;
-        float4 FalloffEnabled = light.FalloffEnabled;
+        float4 DirectionType = light.DirectionType;
+        float4 Params = light.Params;
+        float4 Extent = light.Extent;
         
         float distance = length(PositionRadius.xyz - input.worldPos);
         float radius = max(PositionRadius.w, 0.001f);
         
         float Basefalloff = saturate(1.0f - distance / radius);
-        float falloff = pow(Basefalloff, max(FalloffEnabled.x, 0.001f));
+        float falloff = pow(Basefalloff, max(Params.x, 0.001f));
         
-        float enabled = FalloffEnabled.y;
+        float enabled = Params.y;
         float intensity = ColorIntensity.w;
         
         float3 lightDir = normalize(PositionRadius.xyz - input.worldPos);
