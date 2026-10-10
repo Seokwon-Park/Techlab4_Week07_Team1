@@ -16,6 +16,7 @@ public:
 	virtual ~URectLightComponent() override;
 
 	ELightType GetLightType() const { return ELightType::Rect; }
+	void FillLightData(FLightRenderData& Out) const override;
 
 	float GetSourceWidth() const { return SourceWidth; }
 	float GetSourceHeight() const { return SourceHeight; }

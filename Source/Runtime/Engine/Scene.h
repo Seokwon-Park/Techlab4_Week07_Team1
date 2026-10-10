@@ -4,6 +4,7 @@
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/FireBallComponent.h"
+#include "Components/LightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
@@ -15,6 +16,11 @@ struct FExponentialHeightFogSceneInfo
 	FFogInfo FogInfo;
 };
 
+struct FLightSceneInfo
+{
+	uint32 Id;
+	
+};
 
 class FScene
 {
@@ -39,6 +45,10 @@ public:
 	void RegisterFireBall(UFireBallComponent* FireBall);
 	void UnregisterFireBall(UFireBallComponent* FireBall);
 
+	void UpdateLight(FRenderer* Renderer);
+	void RegisterLight(ULightComponent* Light);
+	void UnregisterLight(ULightComponent* Light);
+
 	TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
 	TArray<FPrimitiveSceneProxy*> RenderStateDirtyProxies;
@@ -46,6 +56,7 @@ public:
 	TArray<uint8> PrimitiveFlags;
 	
 	TArray<FExponentialHeightFogSceneInfo> FogInfos;
+	TArray<FLightSceneInfo> LightInfos;
 
 	// 컬링 결과로 프록시를 바로 내보내 컴포넌트를 역참조하지 않는다. 경계는 Build/Refit 때만 계산한다.
 	TBVH<FPrimitiveSceneProxy*> BVH{
@@ -58,4 +69,5 @@ public:
 	bool bElementListChanged = false;
 	
 	TArray<UFireBallComponent*> FireBallComponents;
+	TArray<ULightComponent*> Lights;
 };

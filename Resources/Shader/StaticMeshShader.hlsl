@@ -17,18 +17,18 @@ cbuffer MaterialParams : register(b1)
     float Padding;
 };
 
-struct FireBallLight
+struct LightRenderData
 {
     float4 PositionRadius;
     float4 ColorIntensity;
     float4 FalloffEnabled;
 };
 
-cbuffer FireBallLightConstants : register(b3)
+cbuffer LightConstants : register(b3)
 {
-    FireBallLight FireBalls[16];
-    uint FireBallCount;
-    float3 FireBallLightPadding;
+    Light Lights[16];
+    uint LightCount;
+    float3 LightPadding;
 };
 
 struct VS_INPUT
@@ -81,12 +81,12 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     float directionNdotL = saturate(dot(N, -LightDir));
     
     float3 totalPointLight = float3(0, 0, 0);
-    for (uint i = 0; i < FireBallCount; ++i)
+    for (uint i = 0; i < LightCount; ++i)
     {
-        FireBallLight fireBall = FireBalls[i];
-        float4 PositionRadius = fireBall.PositionRadius;
-        float4 ColorIntensity = fireBall.ColorIntensity;
-        float4 FalloffEnabled = fireBall.FalloffEnabled;
+        Light light = Lights[i];
+        float4 PositionRadius = light.PositionRadius;
+        float4 ColorIntensity = light.ColorIntensity;
+        float4 FalloffEnabled = light.FalloffEnabled;
         
         float distance = length(PositionRadius.xyz - input.worldPos);
         float radius = max(PositionRadius.w, 0.001f);

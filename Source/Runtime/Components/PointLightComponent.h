@@ -17,6 +17,8 @@ public:
 	// spherical wireframe
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
+	void FillLightData(FLightRenderData& Out) const override;
+
 	float GetLightFalloffExponent() const { return LightFalloffExponent; }
 	void SetLightFalloffExponent(float InLightFalloffExponent) { LightFalloffExponent = InLightFalloffExponent; }
 

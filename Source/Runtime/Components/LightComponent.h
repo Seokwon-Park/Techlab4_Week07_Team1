@@ -2,6 +2,7 @@
 
 #include "LightComponentBase.h"
 #include "Render/LineBatcher.h"
+#include "Render/LightRenderData.h"
 
 class ULightComponent : public ULightComponentBase
 {
@@ -14,8 +15,13 @@ public:
 
 	virtual ELightType GetLightType() const = 0;
 	virtual void DrawDebug(FLineBatcher* LineBatcher) const;
+	virtual void FillLightData(FLightRenderData& Out) const = 0;
 
 protected:
+	virtual bool ShouldCreateRenderState() const override { return true; }	
+	virtual void CreateRenderState() override;
+	virtual void DestroyRenderState() override;
+
 private:
 
 };

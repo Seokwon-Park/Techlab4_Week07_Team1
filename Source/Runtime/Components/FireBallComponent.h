@@ -1,9 +1,9 @@
 #pragma once
-#include "SceneComponent.h"
+#include "LightComponent.h"
 
-class UFireBallComponent : public USceneComponent
+class UFireBallComponent : public LightComponent
 {
-	DECLARE_CLASS(UFireBallComponent, USceneComponent)
+	DECLARE_CLASS(UFireBallComponent, LightComponent)
 
 	REFLECT_START(ClassName)
 		PROPERTY(Intensity)

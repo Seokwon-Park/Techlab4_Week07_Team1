@@ -206,26 +206,26 @@ void FScene::MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy)
 }
 
 
-void FScene::UpdateFireBallLight(FRenderer* Renderer)
+void FScene::UpdateLights(FRenderer* Renderer)
 {
 	if (!Renderer)
 		return;
 
-	FFireBallLight Data{};
-	FFireBallLightConstants Constants{};
+	FLightRenderData Data{};
+	FLightConstants Constants{};
 
 	Constants.LightCount = 0;
 
-	// 기본값: 활성 FireBall 없음
+	// 기본값: 활성 Light 없음
 	Data.PositionRadius = FVector4(0, 0, 0, 0);
 	Data.ColorIntensity = FVector4(0, 0, 0, 0);
 	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
 
 	for (UFireBallComponent* FireBall : FireBallComponents)
 	{
-		if (Constants.LightCount >= MaxFireBalls)
+		if (Constants.LightCount >= MaxLights)
 		{
-			break; // 최대 FireBall 수를 초과하면 루프 종료
+			break; // 최대 Light 수를 초과하면 루프 종료
 		}
 
 		if (!FireBall)
@@ -259,7 +259,7 @@ void FScene::UpdateFireBallLight(FRenderer* Renderer)
 		Constants.LightCount++;
 	}
 
-	Renderer->SetFireBallLight(Constants);
+	Renderer->SetLights(Constants);
 }
 
 void FScene::RegisterFireBall(UFireBallComponent* FireBall)
@@ -283,5 +283,24 @@ void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
 			FireBallComponents.RemoveAt(i, 1);
 			return;
 		}
+	}
+}
+
+void FScene::RegisterLight(ULightComponent* Light)
+{
+	if (!Light) return;
+	for (ULightComponent* Existing : Lights)
+	{
+		if (Existing == Light) return;
+	}
+	Lights.Add(Light);
+}
+
+void FScene::UnregisterLight(ULightComponent* Light)
+{
+	for (uint32 i = 0; i < Lights.Num(); ++i)
+	{
+		Lights.RemoveAt(i, 1);
+		return; 
 	}
 }

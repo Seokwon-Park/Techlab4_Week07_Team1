@@ -28,7 +28,6 @@ namespace
             Prev = Point;
         }
     }
-
 }
 
 void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const 
@@ -42,4 +41,34 @@ void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,0,1), Radius, GetLightColor().ToVector4());
     AddWireSphere(LineBatcher, Center, FVector(0,1,0), FVector(0,0,1), Radius, GetLightColor().ToVector4());
     AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,1,0), Radius, GetLightColor().ToVector4());
+}
+
+void UPointLightComponent::FillLightData(FLightRenderData& Out) const
+{
+    const FVector Position = GetWorldLocation();
+    const FVector4 Color = GetLightColor().ToVector4();
+
+    Out.PositionRadius = FVector4(
+        Position.X,
+        Position.Y,
+        Position.Z,
+        std::max<float>(GetAttenuationRadius(), 0.001f)
+    );
+
+    Out.ColorIntensity = FVector4(
+        Color.X,
+        Color.Y,
+        Color.Z,
+        std::max<float>(GetIntensity(), 0.0f)
+    );
+
+    Out.DirectionType = FVector4(
+        0.0f, 0.0f, 0.0f, (float)ELightType::Point
+    );
+
+    Out.Params = FVector4(
+        std::max<float>(GetLightFalloffExponent(), 0.001f),
+        0.0f, 0.0f, 0.0f);
+
+    Out.Extent = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 }

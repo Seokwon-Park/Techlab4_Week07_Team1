@@ -14,5 +14,7 @@ public:
 	ELightType GetLightType() const { return ELightType::Directional; }
 	FVector GetDirection() const { return GetTransform().GetForward(); }
 
+	void FillLightData(FLightRenderData& Out) const override;
+
 private:
 };

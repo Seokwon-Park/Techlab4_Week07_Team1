@@ -20,12 +20,16 @@ public:
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 	ELightType GetLightType() const { return ELightType::Spot; }
+	void FillLightData(FLightRenderData& Out) const override;
 
 	float GetInnerConeAngle() const { return InnerConeAngle; }
 	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }
 
 	float GetOuterConeAngle() const { return OuterConeAngle; }
 	void SetOuterConeAngle(float InAngle) { OuterConeAngle = InAngle; }
+
+	float GetFalloff() const { return Falloff; }
+	void SetFallOff(float InFalloff) { Falloff = InFalloff; }
 
 private:
 	// 원뿔 중심축 기준 반각(도). 
