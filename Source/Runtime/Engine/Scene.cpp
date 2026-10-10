@@ -219,41 +219,18 @@ void FScene::UpdateLights(FRenderer* Renderer)
 	// 기본값: 활성 Light 없음
 	Data.PositionRadius = FVector4(0, 0, 0, 0);
 	Data.ColorIntensity = FVector4(0, 0, 0, 0);
-	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
+	Data.DirectionType = FVector4(0, 0, 0, 0);
+	Data.Params = FVector4(0, 0, 0, 0);
+	Data.Extent = FVector4(0, 0, 0, 0);
 
-	for (UFireBallComponent* FireBall : FireBallComponents)
+	for (ULightComponent* Light : Lights)
 	{
 		if (Constants.LightCount >= MaxLights)
 		{
 			break; // 최대 Light 수를 초과하면 루프 종료
 		}
 
-		if (!FireBall)
-			continue;
-
-		const FVector Position = FireBall->GetWorldLocation();
-		const FVector4 Color = FireBall->GetLightColor();
-
-		Data.PositionRadius = FVector4(
-			Position.X,
-			Position.Y,
-			Position.Z,
-			std::max<float>(FireBall->GetRadius(), 0.001f)
-		);
-
-		Data.ColorIntensity = FVector4(
-			Color.X,
-			Color.Y,
-			Color.Z,
-			std::max<float>(FireBall->GetIntensity(), 0.0f)
-		);
-
-		Data.FalloffEnabled = FVector4(
-			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
-			1.0f,
-			0.0f,
-			0.0f
-		);
+		if (!Light) continue;
 
 		Constants.Light[Constants.LightCount] = Data;
 		Constants.LightCount++;
@@ -262,29 +239,6 @@ void FScene::UpdateLights(FRenderer* Renderer)
 	Renderer->SetLights(Constants);
 }
 
-void FScene::RegisterFireBall(UFireBallComponent* FireBall)
-{
-	if (!FireBall)
-		return;
-
-	for (UFireBallComponent* Existing : FireBallComponents)
-	{
-		if (Existing == FireBall)
-			return;
-	}
-	FireBallComponents.Add(FireBall);
-}
-void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
-{
-	for (uint32 i = 0; i < FireBallComponents.Num(); ++i)
-	{
-		if (FireBallComponents[i] == FireBall)
-		{
-			FireBallComponents.RemoveAt(i, 1);
-			return;
-		}
-	}
-}
 
 void FScene::RegisterLight(ULightComponent* Light)
 {
@@ -300,7 +254,8 @@ void FScene::UnregisterLight(ULightComponent* Light)
 {
 	for (uint32 i = 0; i < Lights.Num(); ++i)
 	{
-		Lights.RemoveAt(i, 1);
-		return; 
+		if (Lights[i] == Light)
+			Lights.RemoveAt(i, 1);
+			return; 
 	}
 }

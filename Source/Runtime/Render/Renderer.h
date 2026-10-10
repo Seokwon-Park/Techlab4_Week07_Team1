@@ -6,7 +6,7 @@
 
 #include "RenderingInfo.h"
 #include "Occlusion/GPUOcclusion.h"
-#include "Components/LightComponent.h"
+#include "LightRenderData.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
 

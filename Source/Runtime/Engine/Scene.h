@@ -41,11 +41,7 @@ public:
 	void MarkDirty(FPrimitiveSceneProxy* Proxy);
 	void MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy);
 
-	void UpdateFireBallLight(FRenderer* Renderer);
-	void RegisterFireBall(UFireBallComponent* FireBall);
-	void UnregisterFireBall(UFireBallComponent* FireBall);
-
-	void UpdateLight(FRenderer* Renderer);
+	void UpdateLights(FRenderer* Renderer);
 	void RegisterLight(ULightComponent* Light);
 	void UnregisterLight(ULightComponent* Light);
 

@@ -115,8 +115,8 @@ void USpotLightComponent::FillLightData(FLightRenderData& Out) const
     Out.DirectionType = FVector4(Dir.X, Dir.Y, Dir.Z, (float)ELightType::Spot);
     Out.Params = FVector4(
 		std::max<float>(GetLightFalloffExponent(), 0.001f),
-		std::cosf(GetInnerConeAngle()),
-		std::cosf(GetOuterConeAngle()),
+		std::cosf(FMath::DegreesToRadians(GetInnerConeAngle())),
+		std::cosf(FMath::DegreesToRadians(GetOuterConeAngle())),
 		std::max<float>(GetFalloff(), 0.001f)
 	);
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "Core/Types.h"
+#include "Math/Vector4.h"
 
 constexpr uint32 MaxLights = 16;
 

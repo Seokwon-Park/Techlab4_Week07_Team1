@@ -21,12 +21,14 @@ struct LightRenderData
 {
     float4 PositionRadius;
     float4 ColorIntensity;
-    float4 FalloffEnabled;
+    float4 DirectionType;
+    float4 Params;
+    float4 Extent;
 };
 
 cbuffer LightConstants : register(b3)
 {
-    Light Lights[16];
+    LightRenderData Lights[16];
     uint LightCount;
     float3 LightPadding;
 };
@@ -83,7 +85,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     float3 totalPointLight = float3(0, 0, 0);
     for (uint i = 0; i < LightCount; ++i)
     {
-        Light light = Lights[i];
+        LightRenderData light = Lights[i];
         float4 PositionRadius = light.PositionRadius;
         float4 ColorIntensity = light.ColorIntensity;
         float4 FalloffEnabled = light.FalloffEnabled;

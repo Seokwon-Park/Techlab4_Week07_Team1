@@ -62,7 +62,7 @@ bool FRenderer::Init()
 	bUsePerObjectSlots = RenderCommand::SupportsConstantBufferOffsets();
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
-	LightCB = RenderCommand::CreateConstantBuffer(sizeof(LightConstants));
+	LightCB = RenderCommand::CreateConstantBuffer(sizeof(FLightConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 

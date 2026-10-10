@@ -1,15 +1,13 @@
 #pragma once
-#include "LightComponent.h"
+#include "PointLightComponent.h"
 
-class UFireBallComponent : public LightComponent
+class UFireBallComponent : public UPointLightComponent
 {
-	DECLARE_CLASS(UFireBallComponent, LightComponent)
+	DECLARE_CLASS(UFireBallComponent, UPointLightComponent)
 
 	REFLECT_START(ClassName)
-		PROPERTY(Intensity)
 		PROPERTY(Radius)
 		PROPERTY(RadiusFalloff)
-		PROPERTY_TYPE(LightColor, Color)
 		REFLECT_END()
 
 public:
@@ -17,11 +15,11 @@ public:
 	virtual ~UFireBallComponent() override;
 	void InitializeComponent();
 
-	float GetIntensity() const { return Intensity; }
 	float GetRadius() const { return Radius; }
 	float GetRadiusFalloff() const { return RadiusFalloff; }
-	const FVector4& GetLightColor() const { return LightColor; }
 
+	ELightType GetLightType() const { return ELightType::Fireball; }
+	void FillLightData(FLightRenderData& Out) const override;
 
 private:
 	float Intensity = 1.8f;
