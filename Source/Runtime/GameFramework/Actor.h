@@ -60,6 +60,10 @@ public:
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	UActorComponent* FindComponentByName(FName Name) const;
+
+	virtual void RegisterAllComponents();
+	// Parameter : 바로 다시 Register 할껀지
+	virtual void UnregisterAllComponents();
 protected:
 	virtual void OnDefaultSubobjectCreated(UObject* Subobject) override;
 

@@ -201,3 +201,19 @@ project "HitoriEditor"
 		targetname "Benchmark_Debug"
 
 	filter {}
+
+
+-- 셰이더를 VS에서 편집하기 위한 보기 전용 프로젝트 (언리얼의 Shaders와 같은 역할).
+-- 에셋(Assets)은 에디터 Content Drawer에서 다루므로 솔루션에 넣지 않는다.
+-- 새 셰이더 파일은 SlnGenerator.bat을 다시 돌려야 목록에 반영된다.
+project "Shaders"
+	location "Intermediate/ProjectFiles"
+	kind     "Utility"
+
+	files { "Resources/Shader/**.hlsl" }
+	vpaths { ["*"] = "Resources/Shader/**" }
+
+	filter "files:**.hlsl"
+		excludefrombuild "On"
+
+	filter {}
