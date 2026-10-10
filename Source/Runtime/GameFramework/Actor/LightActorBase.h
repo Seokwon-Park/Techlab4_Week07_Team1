@@ -2,6 +2,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Components/BillboardComponent.h"
+#include "Components/LightComponent.h"
 
 class ALightActorBase : public AActor
 {
