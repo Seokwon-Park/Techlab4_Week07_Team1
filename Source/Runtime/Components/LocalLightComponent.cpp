@@ -5,13 +5,17 @@ ULocalLightComponent::ULocalLightComponent() = default;
 
 ULocalLightComponent::~ULocalLightComponent() = default;
 
-void ULocalLightComponent::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<float>("AttenuationRadius", offsetof(ULocalLightComponent, mAttenuationRadius));
+void ULocalLightComponent::OnRegister() {
+	Super::OnRegister();
+
+	mLightProxy.GetRenderParameters().InvRadius = GetInvRadius();
 }
 
 void ULocalLightComponent::PostEditChangeProperty(const FProperty& Property) {
 	Super::PostEditChangeProperty(Property);
 	SetAttenuationRadius(mAttenuationRadius);
+
+	mLightProxy.GetRenderParameters().InvRadius = GetInvRadius();
 }
 
 float ULocalLightComponent::GetAttenuationRadius() const {

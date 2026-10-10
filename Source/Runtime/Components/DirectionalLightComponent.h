@@ -5,12 +5,17 @@
 class UDirectionalLightComponent : public ULightComponent {
 	DECLARE_CLASS(UDirectionalLightComponent, ULightComponent)
 
+	REFLECT_START(UDirectionalLightComponent)
+		PROPERTY(mSourceAngle)
+		PROPERTY(mSoftSourceAngle)
+	REFLECT_END()
+
 public:
 	UDirectionalLightComponent();
 	virtual ~UDirectionalLightComponent() override;
 
 public:
-	static void RegisterProperties(UClass* InClass);
+	virtual void OnRegister() override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
 	float GetSourceAngle() const;
 	void SetSourceAngle(float InSourceAngle);

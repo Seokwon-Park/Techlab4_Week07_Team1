@@ -5,12 +5,19 @@
 class URectLightComponent : public ULocalLightComponent {
 	DECLARE_CLASS(URectLightComponent, ULocalLightComponent)
 
+	REFLECT_START(URectLightComponent)
+		PROPERTY(mSourceWidth)
+		PROPERTY(mSourceHeight)
+		PROPERTY(mBarnDoorAngle)
+		PROPERTY(mBarnDoorLength)
+	REFLECT_END()
+
 public:
 	URectLightComponent();
 	virtual ~URectLightComponent() override;
 
 public:
-	static void RegisterProperties(UClass* InClass);
+	virtual void OnRegister() override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
 	float GetSourceWidth() const;
 	void SetSourceWidth(float InSourceWidth);

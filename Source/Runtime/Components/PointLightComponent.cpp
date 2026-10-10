@@ -7,11 +7,14 @@ UPointLightComponent::UPointLightComponent() = default;
 
 UPointLightComponent::~UPointLightComponent() = default;
 
-void UPointLightComponent::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<float>("Falloff", offsetof(UPointLightComponent, mLightFalloffExponent));
-	InClass->AddProperty<float>("SourceRadius", offsetof(UPointLightComponent, mSourceRadius));
-	InClass->AddProperty<float>("SoftSourceRadius", offsetof(UPointLightComponent, mSoftSourceRadius));
-	InClass->AddProperty<float>("SourceLength", offsetof(UPointLightComponent, mSourceLength));
+void UPointLightComponent::OnRegister() {
+	Super::OnRegister();
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.FalloffExponent = mLightFalloffExponent;
+	RenderParameters.SourceRadius = mSourceRadius;
+	RenderParameters.SoftSourceRadius = mSoftSourceRadius;
+	RenderParameters.SourceLength = mSourceLength;
 }
 
 void UPointLightComponent::PostEditChangeProperty(const FProperty& Property) {
@@ -20,6 +23,12 @@ void UPointLightComponent::PostEditChangeProperty(const FProperty& Property) {
 	SetSourceRadius(mSourceRadius);
 	SetSoftSourceRadius(mSoftSourceRadius);
 	SetSourceLength(mSourceLength);
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.FalloffExponent = mLightFalloffExponent;
+	RenderParameters.SourceRadius = mSourceRadius;
+	RenderParameters.SoftSourceRadius = mSoftSourceRadius;
+	RenderParameters.SourceLength = mSourceLength;
 }
 
 float UPointLightComponent::GetLightFalloffExponent() const {

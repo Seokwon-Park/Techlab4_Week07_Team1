@@ -1,14 +1,26 @@
 #include "EnginePCH.h"
 #include "LightComponentBase.h"
+#include "../Engine/World.h"
 
 ULightComponentBase::ULightComponentBase() = default;
 
 ULightComponentBase::~ULightComponentBase() = default;
 
-void ULightComponentBase::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<float>("Intensity", offsetof(ULightComponentBase, mIntensity));
-	InClass->AddProperty<FVector4>("LightColor", offsetof(ULightComponentBase, mLightColor), EPropertyType::Color);
-	InClass->AddProperty<bool>("bVisible", offsetof(ULightComponentBase, mVisible));
+void ULightComponentBase::OnRegister() {
+	Super::OnRegister();
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters = FLightRenderParameters{};
+	RenderParameters.LightColor = mLightColor;
+	RenderParameters.WorldPosition = GetWorldLocation();
+
+	Super::GetWorld()->GetScene().RegisterLightProxy(&mLightProxy);
+}
+
+void ULightComponentBase::OnUnregister() {
+	Super::OnUnregister();
+
+	Super::GetWorld()->GetScene().UnregisterLightProxy(&mLightProxy);
 }
 
 void ULightComponentBase::PostEditChangeProperty(const FProperty& Property) {
@@ -16,6 +28,10 @@ void ULightComponentBase::PostEditChangeProperty(const FProperty& Property) {
 	SetIntensity(mIntensity);
 	SetLightColor(mLightColor);
 	SetVisible(mVisible);
+
+	mLightProxy.GetRenderParameters().LightColor = FVector4{ mLightColor.X, mLightColor.Y, mLightColor.Z, mLightColor.W };
+	mLightProxy.GetRenderParameters().WorldPosition = GetWorldLocation();
+
 }
 
 float ULightComponentBase::GetIntensity() const {

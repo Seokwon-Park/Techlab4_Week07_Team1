@@ -5,12 +5,19 @@
 class UPointLightComponent : public ULocalLightComponent {
 	DECLARE_CLASS(UPointLightComponent, ULocalLightComponent)
 
+	REFLECT_START(UPointLightComponent)
+		PROPERTY(mLightFalloffExponent)
+		PROPERTY(mSourceRadius)
+		PROPERTY(mSoftSourceRadius)
+		PROPERTY(mSourceLength)
+	REFLECT_END()
+
 public:
 	UPointLightComponent();
 	virtual ~UPointLightComponent() override;
 
 public:
-	static void RegisterProperties(UClass* InClass);
+	virtual void OnRegister() override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
 	float GetLightFalloffExponent() const;
 	void SetLightFalloffExponent(float InLightFalloffExponent);

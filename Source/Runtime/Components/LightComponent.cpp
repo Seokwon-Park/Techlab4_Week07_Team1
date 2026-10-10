@@ -5,10 +5,13 @@ ULightComponent::ULightComponent() = default;
 
 ULightComponent::~ULightComponent() = default;
 
-void ULightComponent::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<bool>("CastShadows", offsetof(ULightComponent, mCastShadows));
-	InClass->AddProperty<float>("DiffuseScale", offsetof(ULightComponent, mDiffuseScale));
-	InClass->AddProperty<float>("SpecularScale", offsetof(ULightComponent, mSpecularScale));
+void ULightComponent::OnRegister() {
+	Super::OnRegister();
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.WorldDirection = GetLightDirection();
+	RenderParameters.DiffuseScale = mDiffuseScale;
+	RenderParameters.SpecularScale = mSpecularScale;
 }
 
 void ULightComponent::PostEditChangeProperty(const FProperty& Property) {
@@ -16,6 +19,11 @@ void ULightComponent::PostEditChangeProperty(const FProperty& Property) {
 	SetCastShadows(mCastShadows);
 	SetDiffuseScale(mDiffuseScale);
 	SetSpecularScale(mSpecularScale);
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.WorldDirection = GetLightDirection();
+	RenderParameters.DiffuseScale = mDiffuseScale;
+	RenderParameters.SpecularScale = mSpecularScale;
 }
 
 bool ULightComponent::GetCastShadows() const {

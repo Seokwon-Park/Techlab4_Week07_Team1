@@ -5,12 +5,17 @@
 class USpotLightComponent : public UPointLightComponent {
 	DECLARE_CLASS(USpotLightComponent, UPointLightComponent)
 
+	REFLECT_START(USpotLightComponent)
+		PROPERTY(mInnerConeAngle)
+		PROPERTY(mOuterConeAngle)
+	REFLECT_END()
+
 public:
 	USpotLightComponent();
 	virtual ~USpotLightComponent() override;
 
 public:
-	static void RegisterProperties(UClass* InClass);
+	virtual void OnRegister() override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
 	float GetInnerConeAngle() const;
 	void SetInnerConeAngle(float InInnerConeAngle);

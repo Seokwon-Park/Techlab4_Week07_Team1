@@ -285,3 +285,25 @@ void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
 		}
 	}
 }
+
+void FScene::RegisterLightProxy(LightProxy* Proxy) {
+	if (!Proxy)
+		return;
+	for (LightProxy* Existing : LightProxies)
+	{
+		if (Existing == Proxy)
+			return;
+	}
+	LightProxies.Add(Proxy);
+}
+
+void FScene::UnregisterLightProxy(LightProxy* Proxy) {
+	for (uint32 i = 0; i < LightProxies.Num(); ++i)
+	{
+		if (LightProxies[i] == Proxy)
+		{
+			LightProxies.RemoveAt(i, 1);
+			return;
+		}
+	}
+}

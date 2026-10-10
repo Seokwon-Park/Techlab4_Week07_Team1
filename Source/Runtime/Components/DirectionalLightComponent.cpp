@@ -1,20 +1,28 @@
 #include "EnginePCH.h"
 #include "DirectionalLightComponent.h"
 #include "Render/LineBatcher.h"
+#include <cmath>
 
 UDirectionalLightComponent::UDirectionalLightComponent() = default;
 
 UDirectionalLightComponent::~UDirectionalLightComponent() = default;
 
-void UDirectionalLightComponent::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<float>("SourceAngle", offsetof(UDirectionalLightComponent, mSourceAngle));
-	InClass->AddProperty<float>("SoftSourceAngle", offsetof(UDirectionalLightComponent, mSoftSourceAngle));
+void UDirectionalLightComponent::OnRegister() {
+	Super::OnRegister();
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.SourceRadius = std::sin(FMath::DegreesToRadians(mSourceAngle * 0.5f));
+	RenderParameters.SoftSourceRadius = std::sin(FMath::DegreesToRadians(mSoftSourceAngle * 0.5f));
 }
 
 void UDirectionalLightComponent::PostEditChangeProperty(const FProperty& Property) {
 	Super::PostEditChangeProperty(Property);
 	SetSourceAngle(mSourceAngle);
 	SetSoftSourceAngle(mSoftSourceAngle);
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.SourceRadius = std::sin(FMath::DegreesToRadians(mSourceAngle * 0.5f));
+	RenderParameters.SoftSourceRadius = std::sin(FMath::DegreesToRadians(mSoftSourceAngle * 0.5f));
 }
 
 float UDirectionalLightComponent::GetSourceAngle() const {

@@ -9,6 +9,7 @@
 #include "Render/FogInfo.h"
 #include "Render/Renderer.h"
 
+#include "LightProxy.h"
 struct FExponentialHeightFogSceneInfo
 {
 	uint32 Id;
@@ -39,11 +40,14 @@ public:
 	void RegisterFireBall(UFireBallComponent* FireBall);
 	void UnregisterFireBall(UFireBallComponent* FireBall);
 
+	void RegisterLightProxy(LightProxy* Proxy);
+	void UnregisterLightProxy(LightProxy* Proxy);
+
 	TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
 	TArray<FPrimitiveSceneProxy*> RenderStateDirtyProxies;
 
-
+	TArray<LightProxy*> LightProxies;
 	
 	TArray<FAABB> PrimitiveBounds;
 	TArray<uint8> PrimitiveFlags;

@@ -25,15 +25,22 @@ USpotLightComponent::USpotLightComponent() {
 
 USpotLightComponent::~USpotLightComponent() = default;
 
-void USpotLightComponent::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<float>("InnerConeAngle", offsetof(USpotLightComponent, mInnerConeAngle));
-	InClass->AddProperty<float>("OuterConeAngle", offsetof(USpotLightComponent, mOuterConeAngle));
+void USpotLightComponent::OnRegister() {
+	Super::OnRegister();
+
+	const float CosInnerAngle{ std::cos(FMath::DegreesToRadians(mInnerConeAngle)) };
+	const float CosOuterAngle{ std::cos(FMath::DegreesToRadians(mOuterConeAngle)) };
+	mLightProxy.GetRenderParameters().SpotAngles = FVector2{ CosOuterAngle, 1.0f / FMath::Max(CosInnerAngle - CosOuterAngle, KINDA_SMALL_NUMBER) };
 }
 
 void USpotLightComponent::PostEditChangeProperty(const FProperty& Property) {
 	Super::PostEditChangeProperty(Property);
 	SetInnerConeAngle(mInnerConeAngle);
 	SetOuterConeAngle(mOuterConeAngle);
+
+	const float CosInnerAngle{ std::cos(FMath::DegreesToRadians(mInnerConeAngle)) };
+	const float CosOuterAngle{ std::cos(FMath::DegreesToRadians(mOuterConeAngle)) };
+	mLightProxy.GetRenderParameters().SpotAngles = FVector2{ CosOuterAngle, 1.0f / FMath::Max(CosInnerAngle - CosOuterAngle, KINDA_SMALL_NUMBER) };
 }
 
 float USpotLightComponent::GetInnerConeAngle() const {

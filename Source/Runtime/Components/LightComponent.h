@@ -14,12 +14,18 @@ enum class ELightType {
 class ULightComponent : public ULightComponentBase {
 	DECLARE_CLASS(ULightComponent, ULightComponentBase)
 
+	REFLECT_START(ULightComponent)
+		PROPERTY(mCastShadows)
+		PROPERTY(mDiffuseScale)
+		PROPERTY(mSpecularScale)
+	REFLECT_END()
+
 public:
 	ULightComponent();
 	virtual ~ULightComponent() override;
 
 public:
-	static void RegisterProperties(UClass* InClass);
+	virtual void OnRegister() override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
 	bool GetCastShadows() const;
 	void SetCastShadows(bool InCastShadows);

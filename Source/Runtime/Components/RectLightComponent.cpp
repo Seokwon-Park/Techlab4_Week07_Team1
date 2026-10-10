@@ -6,11 +6,12 @@ URectLightComponent::URectLightComponent() = default;
 
 URectLightComponent::~URectLightComponent() = default;
 
-void URectLightComponent::RegisterProperties(UClass* InClass) {
-	InClass->AddProperty<float>("SourceWidth", offsetof(URectLightComponent, mSourceWidth));
-	InClass->AddProperty<float>("SourceHeight", offsetof(URectLightComponent, mSourceHeight));
-	InClass->AddProperty<float>("BarnDoorAngle", offsetof(URectLightComponent, mBarnDoorAngle));
-	InClass->AddProperty<float>("BarnDoorLength", offsetof(URectLightComponent, mBarnDoorLength));
+void URectLightComponent::OnRegister() {
+	Super::OnRegister();
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.SourceRadius = mSourceWidth * 0.5f;
+	RenderParameters.SourceLength = mSourceHeight * 0.5f;
 }
 
 void URectLightComponent::PostEditChangeProperty(const FProperty& Property) {
@@ -19,6 +20,10 @@ void URectLightComponent::PostEditChangeProperty(const FProperty& Property) {
 	SetSourceHeight(mSourceHeight);
 	SetBarnDoorAngle(mBarnDoorAngle);
 	SetBarnDoorLength(mBarnDoorLength);
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.SourceRadius = mSourceWidth * 0.5f;
+	RenderParameters.SourceLength = mSourceHeight * 0.5f;
 }
 
 float URectLightComponent::GetSourceWidth() const {

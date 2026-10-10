@@ -3,19 +3,18 @@
 
 
 struct FLightRenderParameters {
-	FColor LightColor;
+	FVector4 LightColor;
 	FVector WorldPosition;
+	
 	FVector WorldDirection;
-
 	float InvRadius;
-	float FalloffExponent;
 
+	float FalloffExponent;
 	float SourceRadius;
 	float SoftSourceRadius;
 	float SourceLength;
 
 	FVector2 SpotAngles;
-
 	float DiffuseScale;
 	float SpecularScale;
 };
