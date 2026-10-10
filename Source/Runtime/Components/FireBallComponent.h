@@ -8,7 +8,7 @@ class UFireBallComponent : public UPointLightComponent
 	REFLECT_START(ClassName)
 		PROPERTY(Radius)
 		PROPERTY(RadiusFalloff)
-		REFLECT_END()
+	REFLECT_END()
 
 public:
 	UFireBallComponent();
@@ -22,4 +22,5 @@ public:
 
 private:
 	float RadiusFalloff = 3.0f;
+	float Radius = 5.0f;
 };

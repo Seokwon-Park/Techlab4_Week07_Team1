@@ -54,8 +54,8 @@ Texture2D g_txColor : register(t0);
 SamplerState g_Sample : register(s0);
 
 // 임시 하드코딩 Directional Light. 빛이 "향하는" 방향이다.
-static const float3 LightDir = normalize(float3(0.5f, 0.5f, -1.0f));
-static const float3 LightColor = float3(0.5f, 0.5f, 0.5f);
+// static const float3 LightDir = normalize(float3(0.5f, 0.5f, -1.0f));
+// static const float3 LightColor = float3(0.5f, 0.5f, 0.5f);
 static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
 
 PS_INPUT mainVS(VS_INPUT input)
@@ -72,47 +72,96 @@ PS_INPUT mainVS(VS_INPUT input)
     return output;
 }
 
+// ELightType
+#define DIRECTIONAL 0
+#define POINT 1
+#define SPOT 2
+#define RECT 3
+#define FIREBALL 4
+
+// struct alignas(16) FLightRenderData
+// {
+// 	FVector4 PositionRadius; 	// xyz: 위치, w: 감쇠 반경
+// 	FVector4 ColorIntensity; 	// rgb: 색상, w: 강도
+// 	FVector4 DirectionType;  	// xyz: 빛의 방향, w: ELightType (Dir:0, Point:1, Spot:2, Rect:3)
+// 	FVector4 Params;         	// x: 감쇠지수, y: cos(Inner), z: cos(Outer), w: spot falloff
+// 	FVector4 Extent;         	// Rect용 xyz: 오른쪽 축, w: 반폭
+// };
+
+// 빛이 오는 방향과 감쇠를 구하는 함수
+float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
+{
+    int type = (int)(light.DirectionType.w + 0.5f);
+    float3 dir = light.DirectionType.xyz;           // 빛의 방향
+    float3 lightPos = light.PositionRadius.xyz;     // 빛의 위치
+    float radius = max(light.PositionRadius.w, 0.001f);
+    float3 color = light.ColorIntensity.rgb;
+    float intensity = light.ColorIntensity.w;
+    float3 L; // 법선벡터
+    float atten = 1.0f;
+
+    if (type == DIRECTIONAL)
+    {
+        L = -dir; // 감쇠 없음
+    }
+    else
+    {
+        float3 samplePos = lightPos;
+
+        if (type == RECT)
+        {
+            float3 right = light.Extent.xyz;
+            float3 up = cross(dir, right);
+            float3 d = worldPos - lightPos;
+
+            // 물체가 면광원 뒤에 있음.
+            if (dot(d, dir) <= 0.0f) return float3(0, 0, 0);
+            
+            float x = clamp(dot(d, right), -light.Extent.w, light.Extent.w);   // 반폭
+            float y = clamp(dot(d, up), -light.Params.y, light.Params.y);   // 반높이
+            samplePos = lightPos + right * x + up * y;
+        }
+
+        float3 toLight = samplePos - worldPos;
+        float dist = length(toLight);
+        L = toLight / max(dist, 0.0001f);
+
+        // 마지막 Light에 곱해질 예정 (반경을 기준으로 멀리 있을수록 0)
+        atten = pow(saturate(1.0f - dist / radius), max(light.Params.x, 0.001f));   // 거리 감쇠
+
+        if (type == SPOT)
+        {
+            // 표면이 빛의 중심에서 얼마나 벗어나 있는지 (0도면 1)
+            float cosAngle = dot(-L, dir);
+
+            // y는 Inner, z는 Outer. Inner 안 = 1, Inner ~ Outer 사이 = 0~1, Outer 밖 = 0
+            float cone = saturate((cosAngle - light.Params.z) / max(light.Params.y - light.Params.z, 0.001f));
+            atten *= pow(cone, max(light.Params.w, 0.001f));
+        }
+    }
+
+    return color * saturate(dot(N, L)) * atten * intensity;
+}
+
 float4 mainPS(PS_INPUT input) : SV_TARGET
 {
     // Mesh 표면색
     float4 texColor = g_txColor.Sample(g_Sample, input.uv + UVOffset);
+    // 빛을 받기 전 표면이 원래 가진 색
     float4 albedo = texColor * BaseColor;
-    
-    float3 N = normalize(input.normal); // 현재 표면이 향하고 있는 방향
-    
-    float directionNdotL = saturate(dot(N, -LightDir));
-    
-    float3 totalPointLight = float3(0, 0, 0);
+
+    float3 N = normalize(input.normal);
+
+    float3 totalLight = float3(0, 0, 0);
     for (uint i = 0; i < LightCount; ++i)
     {
-        LightRenderData light = Lights[i];
-        float4 PositionRadius = light.PositionRadius;
-        float4 ColorIntensity = light.ColorIntensity;
-        float4 DirectionType = light.DirectionType;
-        float4 Params = light.Params;
-        float4 Extent = light.Extent;
         
-        float distance = length(PositionRadius.xyz - input.worldPos);
-        float radius = max(PositionRadius.w, 0.001f);
-        
-        float Basefalloff = saturate(1.0f - distance / radius);
-        float falloff = pow(Basefalloff, max(Params.x, 0.001f));
-        
-        float enabled = Params.y;
-        float intensity = ColorIntensity.w;
-        
-        float3 lightDir = normalize(PositionRadius.xyz - input.worldPos);
-        
-        float pointNdotL = saturate(dot(N, lightDir));
-        float3 pointLight = ColorIntensity.rgb * pointNdotL * falloff * enabled * intensity;
-        totalPointLight += pointLight;
+        totalLight += EvaluateLight(Lights[i], N, input.worldPos);
     }
 
-    float3 lighting = AmbientColor + LightColor * directionNdotL;
-    
-    // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
+    // Opaque 알파 1로 고정
     float alpha = bOpaque > 0.5f ? 1.0f : albedo.a;
-    
-    float3 finalRGB = albedo.rgb * (lighting + totalPointLight);
+
+    float3 finalRGB = albedo.rgb * (AmbientColor + totalLight);
     return float4(finalRGB, alpha);
 }
