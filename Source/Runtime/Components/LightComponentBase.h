@@ -1,21 +1,20 @@
 #pragma once
+
 #include "SceneComponent.h"
+#include "Math/Color.h"
 
 class ULightComponentBase : public USceneComponent
 {
-public:
-    DECLARE_CLASS(ULightComponentBase, USceneComponent)
+	DECLARE_CLASS(ULightComponentBase, USceneComponent)
 	REFLECT_START(ULightComponentBase)
-		PROPERTY(Intensity)
-		PROPERTY(LightColor, Color)
-	REFLECT_END()
-
-    float GetIntensity() { return Intensity; }
-    FVector4 GetLightColor() { return LightColor; }
-    void SetIntensity(float InIntensity) { Intensity = InIntensity; }
-    void SetLightColor(FVector4 InLightColor) { LightColor = InLightColor; }
+		REFLECT_END()
+public:
+	ULightComponentBase();
+	virtual ~ULightComponentBase() override;
 
 private:
-    float Intensity;
-    FVector4 LightColor;
+	float Intensity;
+	FColor LightColor;
+	bool bVisible;
+
 };

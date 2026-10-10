@@ -8,7 +8,9 @@ class ULightComponent : public ULightComponentBase
 	REFLECT_START(ULightComponent)
 	REFLECT_END()
 public:
-
+	ULightComponent();
+	virtual ~ULightComponent() override;
+protected:
 private:
 	float MaxDrawDistance;
 	float SpecularScale;
