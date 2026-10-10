@@ -25,7 +25,15 @@ public:
 	FFogInfo GetFogInfo() const;
 
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
-		 
+protected:
+	virtual bool ShouldCreateRenderState() const override
+	{
+		return true;
+	}
+
+	virtual void CreateRenderState() override;
+	virtual void DestroyRenderState() override;
+
 private:
 	//포그의 밀도, 높이에 따른 감소율, 시작 거리, 최대 불투명도, 색상 등을 설정하는 변수들
 	float    FogDensity = 0.02f;

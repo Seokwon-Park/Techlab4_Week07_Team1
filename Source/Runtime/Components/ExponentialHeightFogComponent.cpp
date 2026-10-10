@@ -29,7 +29,16 @@ void UExponentialHeightFogComponent::PostEditChangeProperty(const FProperty& Pro
 	if (!World) return;
 
 	World->GetScene().UpdateFogInfo(GetUUID(),GetFogInfo());
+}
 
+void UExponentialHeightFogComponent::CreateRenderState()
+{
+	Super::CreateRenderState();
+	GetWorld()->GetScene().AddFogInfo(GetUUID(), GetFogInfo());
+}
 
-
+void UExponentialHeightFogComponent::DestroyRenderState()
+{
+	GetWorld()->GetScene().RemoveFogInfo(GetUUID());
+	Super::DestroyRenderState();
 }

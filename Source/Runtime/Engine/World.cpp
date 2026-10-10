@@ -86,16 +86,8 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 	{
 		NewActor->GetRootComponent()->SetTransform(SpawnTransform);
 	}
-
-	for (UActorComponent* Component : NewActor->GetComponents())
-	{
-		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
-			Scene.AddPrimitive(Primitive);
-		else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
-			Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
-		else if (UFireBallComponent* FireBall = Cast<UFireBallComponent>(Component))
-			Scene.RegisterFireBall(FireBall);
-	}
+	
+	NewActor->RegisterAllComponents();
 
 	// 4. Level->Actors에 등록
 	PersistentLevel->AddActor(NewActor);
@@ -149,17 +141,21 @@ void UWorld::ClearWorld()
 	PathTracker.SetPathRenderingEnabled(false);
 	PathTracker.ClearPath();
 
+	
+	for (ULevel* Level : Levels)
+	{
+		for (AActor* Actor : Level->Actors)
+		{
+			if (!Actor) continue;
+			Actor->UnregisterAllComponents();
+			Actor->RegisterAllActorTickFunctions(false);
+		}
+		Level->ClearActors();
+	}
 	// 액터를 지우기 전에 렌더 프록시와 틱 등록부터 푼다. ClearActors는 액터를 delete만 하므로,
 	// 그대로 두면 지워진 컴포넌트를 가리키는 프록시가 FScene에 남아 다음 프레임에 터진다.
 	Scene.RemoveAllPrimitives();
 	Scene.RemoveAllFogInfo();
-	for (ULevel* Level : Levels)
-	{
-		for (AActor* Actor : Level->Actors)
-			if (Actor)
-				Actor->RegisterAllActorTickFunctions(false);
-		Level->ClearActors();
-	}
 	HTR_LOG(Info, "{} : ", PersistentLevel->GetActorNum());
 }
 
@@ -190,7 +186,7 @@ void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContex
 		}
 	}
 
-	RenderStats.TotalPrimitives = Scene.Proxies.Num();
+	RenderStats.TotalPrimitives = Scene.PrimitiveSceneProxies.Num();
 
 	// GPU 오클루전: 프러스텀을 통과한 물체를 GPU에서 가림 판정하고 결과를 이번 프레임에 받아 온다.
 	// Cull이 켜져 있으면 가려진 물체를 목록에서 빼서 이후 Gather·정렬·드로우를 모두 건너뛴다.
@@ -557,17 +553,7 @@ bool UWorld::DestroyActor(AActor* Actor)
 	uint32 ActorUUID = Actor->GetUUID();
 
 	// 5. 프록시 제거
-	for (UActorComponent* Component : Actor->GetComponents())
-	{
-		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
-		{
-			Scene.RemovePrimitive(Primitive);
-		}
-		else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
-		{
-			Scene.RemoveFogInfo(Fog->GetUUID());
-		}
-	}
+	Actor->UnregisterAllComponents();
 
 	Actor->RegisterAllActorTickFunctions(false);
 
@@ -739,17 +725,10 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 			continue;
 
 		for (UActorComponent* Component : Actor->GetComponents())
-		{
 			if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
-				SceneComp->MarkTransformDirty();        // 부착/상대 Transform이 바뀌었으니 다시 계산
+				SceneComp->MarkTransformDirty();
 
-			if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
-				Scene.AddPrimitive(Primitive);
-			else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
-				Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
-			else if (UFireBallComponent* FireBall = Cast<UFireBallComponent>(Component))
-				Scene.RegisterFireBall(FireBall);
-		}
+		Actor->RegisterAllComponents();
 
 		BeginPlayList.Enqueue(Actor);   // Tick 등록은 BeginPlay에서 함
 	}

@@ -24,7 +24,6 @@ void ULevel::ClearActors()
 
 		delete Actor;
 	}
-
 	Actors.Reset();
 }
 

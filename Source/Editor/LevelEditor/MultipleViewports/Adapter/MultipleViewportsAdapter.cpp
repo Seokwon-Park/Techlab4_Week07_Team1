@@ -480,11 +480,11 @@ void FMultipleViewportsAdapter::CaptureWorld(UWorld& World)
     bCapturedParticle = false;
 
     const FScene& Scene = World.GetScene();
-    const int32 Count = Scene.Proxies.Num();
+    const int32 Count = Scene.PrimitiveSceneProxies.Num();
     for (int32 i = 0; i < Count;++i)
     {
         if (!Scene.PrimitiveFlags[i]) continue;
-        UPrimitiveComponent* Primitive = Scene.Proxies[i]->GetComponent();
+        UPrimitiveComponent* Primitive = Scene.PrimitiveSceneProxies[i]->GetComponent();
         if (!Primitive || !Primitive->IsVisible() || !Primitive->GetOwner() ||
             Primitive->GetOwner()->GetWorld() != &World) continue;
         const ObjectId Id = Primitive->GetUUID();
