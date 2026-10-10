@@ -97,7 +97,7 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     float radius = max(light.PositionRadius.w, 0.001f);
     float3 color = light.ColorIntensity.rgb;
     float intensity = light.ColorIntensity.w;
-    float3 L; // 법선벡터
+    float3 L; // 표면에서 본 빛 쪽 방향
     float atten = 1.0f;
 
     if (type == DIRECTIONAL)

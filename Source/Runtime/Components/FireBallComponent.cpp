@@ -5,8 +5,9 @@
 UFireBallComponent::UFireBallComponent()
 {
     SetIntensity(1.8f);
-    SetLightColor(FColor(1.0f, 0.0f, 0.8f, 1.0f));
+    SetLightColor(FColor(255, 0, 204, 255));
     SetAttenuationRadius(6.5f);
+    SetLightFalloffExponent(3.0f);
 }
 
 UFireBallComponent::~UFireBallComponent() {}
@@ -21,7 +22,7 @@ void UFireBallComponent::FillLightData(FLightRenderData& Out) const
         Position.X,
         Position.Y,
         Position.Z,
-        std::max<float>(GetRadius(), 0.001f)
+        std::max<float>(GetAttenuationRadius(), 0.001f)
     );
 
     Out.ColorIntensity = FVector4(
@@ -36,7 +37,7 @@ void UFireBallComponent::FillLightData(FLightRenderData& Out) const
     );
 
     Out.Params = FVector4(
-        std::max<float>(GetRadiusFalloff(), 0.001f),
+        std::max<float>(GetLightFalloffExponent(), 0.001f),
         0, 0, 0
     );
 

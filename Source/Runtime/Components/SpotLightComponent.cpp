@@ -103,8 +103,9 @@ void USpotLightComponent::FillLightData(FLightRenderData& Out) const
 {
     const FVector Dir = FTransform(GetWorldRotation(), GetWorldLocation()).GetForward();
     const FVector4 Color = GetLightColor().ToVector4();
+	const FVector Position = GetWorldLocation();
 
-    Out.PositionRadius = FVector4(0, 0, 0, 0);
+    Out.PositionRadius = FVector4(Position.X, Position.Y, Position.Z, GetAttenuationRadius());
     Out.ColorIntensity = FVector4(
         Color.X,
         Color.Y,
