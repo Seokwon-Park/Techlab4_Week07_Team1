@@ -22,7 +22,7 @@ public:
 
 	static FShaderProgram* GetShaderProgram(const FString& InPath);
 private:
-	void LoadOrCompileShader(const FString& Path);
+	void LoadOrCompileShader(const FString& Path, const FString& Suffix = "", const FShaderDefines& Defines = {});
 
 	TMap<FString, TUniquePtr<FVertexShader>> VertexShaderMap;
 	TMap<FString, TUniquePtr<FPixelShader>>  PixelShaderMap;

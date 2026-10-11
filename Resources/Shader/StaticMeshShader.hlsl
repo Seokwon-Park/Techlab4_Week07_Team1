@@ -33,60 +33,21 @@ cbuffer LightConstants : register(b3)
     float3 LightPadding;
 };
 
-struct VS_INPUT
-{
-    float3 p : POSITION; // Input position from vertex buffer
-    float3 n : NORMAL;
-    float4 c : COLOR; // Input color from vertex buffer
-    float2 t : TEXCOORD;
-};
+// LightModel
+#define GOURAUD 0
+#define LAMBERT 1
+#define BLINNPHONG 2
 
-struct PS_INPUT
-{
-    float4 position : SV_POSITION;
-    float3 normal : NORMAL;
-    float4 color : COLOR;
-    float2 uv : TEXCOORD0;
-    float3 worldPos : TEXCOORD1;
-};
-
-Texture2D g_txColor : register(t0);
-SamplerState g_Sample : register(s0);
-
-// 임시 하드코딩 Directional Light. 빛이 "향하는" 방향이다.
-// static const float3 LightDir = normalize(float3(0.5f, 0.5f, -1.0f));
-// static const float3 LightColor = float3(0.5f, 0.5f, 0.5f);
-static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
-
-PS_INPUT mainVS(VS_INPUT input)
-{
-    PS_INPUT output;
-
-    output.worldPos = mul(float4(input.p, 1.0f), World).xyz;
-    output.position = mul(mul(float4(input.p, 1.0f), World), VP);
-    
-    // w=0으로 이동 성분을 빼고 월드 공간으로 보낸다. 비균등 스케일이면 역전치가 필요하다.
-    output.normal = mul(float4(input.n, 0.0f), World).xyz;
-    output.color = input.c;
-    output.uv = input.t;
-    return output;
-}
-
-// ELightType
+// LightType
 #define DIRECTIONAL 0
 #define POINT 1
 #define SPOT 2
 #define RECT 3
 #define FIREBALL 4
 
-// struct alignas(16) FLightRenderData
-// {
-// 	FVector4 PositionRadius; 	// xyz: 위치, w: 감쇠 반경
-// 	FVector4 ColorIntensity; 	// rgb: 색상, w: 강도
-// 	FVector4 DirectionType;  	// xyz: 빛의 방향, w: ELightType (Dir:0, Point:1, Spot:2, Rect:3)
-// 	FVector4 Params;         	// x: 감쇠지수, y: cos(Inner), z: cos(Outer), w: spot falloff
-// 	FVector4 Extent;         	// Rect용 xyz: 오른쪽 축, w: 반폭
-// };
+#ifndef LIGHTING_MODEL
+#define LIGHTING_MODEL LAMBERT
+#endif
 
 // 빛이 오는 방향과 감쇠를 구하는 함수
 float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
@@ -99,6 +60,10 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     float intensity = light.ColorIntensity.w;
     float3 L; // 표면에서 본 빛 쪽 방향
     float atten = 1.0f;
+
+    #if LIGHTING_MODEL == BLINNPHONG
+        // specular = ;
+    #endif
 
     if (type == DIRECTIONAL)
     {
@@ -143,6 +108,52 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     return color * saturate(dot(N, L)) * atten * intensity;
 }
 
+struct VS_INPUT
+{
+    float3 p : POSITION; // Input position from vertex buffer
+    float3 n : NORMAL;
+    float4 c : COLOR; // Input color from vertex buffer
+    float2 t : TEXCOORD;
+};
+
+struct PS_INPUT
+{
+    float4 position : SV_POSITION;
+    float3 normal : NORMAL;
+    float4 color : COLOR;
+    float2 uv : TEXCOORD0;
+    float3 worldPos : TEXCOORD1;
+    float3 vertexLight : TEXCOORD2;
+};
+
+Texture2D g_txColor : register(t0);
+SamplerState g_Sample : register(s0);
+
+// 전역광
+static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
+
+PS_INPUT mainVS(VS_INPUT input)
+{
+    PS_INPUT output;
+
+    output.worldPos = mul(float4(input.p, 1.0f), World).xyz;
+    output.position = mul(mul(float4(input.p, 1.0f), World), VP);
+    
+    // w=0으로 이동 성분을 빼고 월드 공간으로 보낸다. 비균등 스케일이면 역전치가 필요하다.
+    output.normal = mul(float4(input.n, 0.0f), World).xyz;
+    output.color = input.c;
+    output.uv = input.t;
+    output.vertexLight = float3(0, 0, 0);
+
+    #if LIGHTING_MODEL == GOURAUD
+        float3 N = normalize(output.normal);
+        for (uint i = 0; i < LightCount; ++i)
+            output.vertexLight += EvaluateLight(Lights[i], N, output.worldPos);
+    #endif
+
+    return output;
+}
+
 float4 mainPS(PS_INPUT input) : SV_TARGET
 {
     // Mesh 표면색
@@ -153,11 +164,16 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     float3 N = normalize(input.normal);
 
     float3 totalLight = float3(0, 0, 0);
+
+    #if LIGHTING_MODEL == GOURAUD
+        totalLight = input.vertexLight;
+    
+    #else
     for (uint i = 0; i < LightCount; ++i)
     {
-        
-        totalLight += EvaluateLight(Lights[i], N, input.worldPos);
+            totalLight += EvaluateLight(Lights[i], N, input.worldPos);
     }
+    #endif
 
     // Opaque 알파 1로 고정
     float alpha = bOpaque > 0.5f ? 1.0f : albedo.a;

@@ -23,6 +23,16 @@ void FRenderResourceManager::ScanShaders(const fs::path& ShaderRoot)
 		if (Entry.path().extension() != ".hlsl") continue;
 
 		FString Path = Entry.path().generic_string();
+		if (Path.find("StaticMeshShader.hlsl") != FString::npos)
+		{
+			LoadOrCompileShader(Path, "_GOURAUD", 	 {{"LIGHTING_MODEL", "0"}});
+			LoadOrCompileShader(Path, "_LAMBERT", 	 {{"LIGHTING_MODEL", "1"}});
+			LoadOrCompileShader(Path, "_BLINNPHONG", {{"LIGHTING_MODEL", "2"}});
+		}
+		else
+		{
+			LoadOrCompileShader(Path);
+		}
 		LoadOrCompileShader(Path);
 	}
 }
@@ -48,12 +58,12 @@ FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath)
 	return nullptr;
 }
 
-void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
+void FRenderResourceManager::LoadOrCompileShader(const FString& Path, const FString& Suffix, const FShaderDefines& Defines)
 { 
 	FString VSCSOPath;
 	FString PSCSOPath;
-	FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath);
-	FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel, PSCSOPath);
+	FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, Suffix, Defines, VSCSOPath);
+	FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel,  Suffix, Defines, PSCSOPath);
 
 	if (!VSCode.IsValid() || !PSCode.IsValid())
 	{
@@ -75,7 +85,7 @@ void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
 
 	VertexShaderMap[VSCSOPath] = std::move(Vs);
 	PixelShaderMap[PSCSOPath] = std::move(Ps);
-	ShaderProgramMap[Path] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
+	ShaderProgramMap[Path + Suffix] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
 
 	HTR_LOG(Info, "[Shader] loaded: {}", Path);
 
