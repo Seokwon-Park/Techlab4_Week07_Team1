@@ -64,10 +64,10 @@ FShaderByteCode RenderUtil::LoadByteCode(const FString& CsoPath)
 FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const FString& Suffix)
 {
 	const fs::path Rel = fs::relative(ShaderPath, "Resources/Shader");
-	const char* Suffix = (ShaderType == EShaderType::Vertex) ? "_VS.cso" : "_PS.cso";
+	const char* StageSuffix = (ShaderType == EShaderType::Vertex) ? "_VS.cso" : "_PS.cso";
 
 	fs::path Out = fs::path("Intermediate/Shaders") / Rel.parent_path();
-	Out /= Rel.stem().generic_string() + Suffix + (VS ? "_VS.cso" : "_PS.cso");
+	Out /= Rel.stem().generic_string() + Suffix + StageSuffix;
 	return Out.generic_string();
 }
 

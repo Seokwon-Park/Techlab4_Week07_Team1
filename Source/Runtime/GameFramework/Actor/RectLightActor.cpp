@@ -4,5 +4,5 @@
 ARectLightActor::ARectLightActor()
 {
     RectLightComponent = CreateDefaultSubobject<URectLightComponent>("URectLightComponent");
-	SetupLightRoot(RectLightComponent);
+	SetupLightRoot(RectLightComponent, "Assets/Icons/Point.png");
 }

@@ -4,5 +4,5 @@
 ASpotLightActor::ASpotLightActor()
 {
     SpotLightComponent = CreateDefaultSubobject<USpotLightComponent>("USpotLightComponent");
-	SetupLightRoot(SpotLightComponent);
+	SetupLightRoot(SpotLightComponent, "Assets/Icons/Spot.png");
 }

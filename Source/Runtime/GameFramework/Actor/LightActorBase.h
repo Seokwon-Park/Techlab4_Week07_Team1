@@ -19,7 +19,7 @@ public:
 	virtual ULightComponent* GetLightComponent() const = 0;
 
 protected:
-	void SetupLightRoot(ULightComponent* LightComponent);
+	void SetupLightRoot(ULightComponent* LightComponent, const FString& IconPath);
 
 private:
 	// 클릭해서 고를 수 있어야 하므로 프리미티브인 빌보드를 루트로 둔다

@@ -33,7 +33,6 @@ void FRenderResourceManager::ScanShaders(const fs::path& ShaderRoot)
 		{
 			LoadOrCompileShader(Path);
 		}
-		LoadOrCompileShader(Path);
 	}
 }
 

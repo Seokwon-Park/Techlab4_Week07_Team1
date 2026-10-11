@@ -72,6 +72,8 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	Packet.Mesh = QuadMesh;
 	Packet.Material = Material;
 	Packet.Model = RenderQueue.StoreWorldMatrix(BillboardWorldMatrix);
+	Packet.MaterialParamData = &IconParams;
+	Packet.MaterialParamDataSize = sizeof(FSubUVConstants);
 	RenderQueue.Add(Packet);
 }
 
