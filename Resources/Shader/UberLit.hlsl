@@ -93,6 +93,7 @@ cbuffer Lighting : register(b4)
 };
 
 Texture2D g_txColor : register(t0);
+Texture2D NormalTexture : register(t1);
 SamplerState g_Sample : register(s0);
 
 struct VS_INPUT
@@ -178,39 +179,35 @@ PS_INPUT mainVS(VS_INPUT Input)
 
     // 노멀은 역전치로, 탄젠트는 표면을 따라 놓인 방향이라 World로 변환한다.
     Output.normal = mul(float4(Input.normal, 0.0f), WorldInverseTranspose).xyz;
-    Output.tangent = float4(mul(float4(Input.tangent.xyz, 0.0f), World).xyz, Input.tangent.w);
+    Output.tangent = float4(mul(float4(Input.tangent.xyz, 0.0f), World).xyz, Input.tangent.w * (determinant((float3x3) World) < 0.0f ? -1.0f : 1.0f));
 
     Output.uv = Input.uv;
     Output.color = Input.color;
     return Output;
 }
 
-float4 mainPS(PS_INPUT Input) : SV_TARGET
-{
-    
-    const float4 Albedo = g_txColor.Sample(g_Sample, Input.uv + UVOffset) * BaseColor;
-    const float3 N = normalize(Input.normal);
-    const float3 T = normalize(Input.tangent.xyz);
-    const float3 B = cross(N, T) * Input.tangent.w; 
+float4 mainPS(PS_INPUT Input) : SV_TARGET {
+    const float2 UV = { Input.uv + UVOffset };
+    const float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
+    const float3 VertexNormal = { normalize(Input.normal) };
+    const float3 T = { normalize(Input.tangent.xyz - VertexNormal * dot(VertexNormal, Input.tangent.xyz)) };
+    const float3 B = { cross(VertexNormal, T) * (Input.tangent.w < 0.0f ? -1.0f : 1.0f) };
+    const float3 TangentNormal = { NormalTexture.Sample(g_Sample, UV).xyz * 2.0f - 1.0f };
+    const float3 N = { normalize(T * TangentNormal.x + B * TangentNormal.y + VertexNormal * TangentNormal.z) };
 
-    return float4(N * 0.5f + 0.5f, 1.0f);
-    
-    
-    float3 Lighting = CalcAmbient();
+    float3 Lighting = { CalcAmbient() };
 #if LIGHTING_MODEL_LAMBERT
     Lighting += CalcDirectional(N);
-    for (uint i = 0; i < NumPointLights; ++i)
-    {
-        Lighting += CalcPoint(PointLights[i], N, Input.worldPos);
+    for (uint Index = { 0 }; Index < NumPointLights; ++Index) {
+        Lighting += CalcPoint(PointLights[Index], N, Input.worldPos);
     }
     
-    for (uint s = 0; s < NumSpotLights; ++s)
-    {
-        Lighting += CalcSpot(SpotLights[s], N, Input.worldPos);
+    for (uint SpotIndex = { 0 }; SpotIndex < NumSpotLights; ++SpotIndex) {
+        Lighting += CalcSpot(SpotLights[SpotIndex], N, Input.worldPos);
     }
 #endif
 
     // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
-    const float Alpha = bOpaque > 0.5f ? 1.0f : Albedo.a;
+    const float Alpha = { bOpaque > 0.5f ? 1.0f : Albedo.a };
     return float4(Albedo.rgb * Lighting, Alpha);
 }

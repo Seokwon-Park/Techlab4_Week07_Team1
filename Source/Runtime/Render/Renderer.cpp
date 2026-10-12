@@ -11,6 +11,7 @@
 #include "RenderCommand.h"
 
 #include "Camera/CameraComponent.h"
+#include "Asset/AssetManager.h"
 
 #include <algorithm>
 #include <chrono>
@@ -460,20 +461,24 @@ void FRenderer::EndObjectConstants()
 }
 
 // Material마다 Shader/Texture/Sampler/State 꽂기
-void FRenderer::BindMaterial(UMaterial* material)
-{
-	RenderCommand::BindShaderProgram(material->Shader);
-	RenderCommand::SetBlendState(material->BlendState);
+void FRenderer::BindMaterial(UMaterial* Material) {
+	RenderCommand::BindShaderProgram(Material->Shader);
+	RenderCommand::SetBlendState(Material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
-	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
-	RenderCommand::SetDepthStencilState(bTranslucent && material->DepthStencilState == EDepthStencilState::Default
-		? EDepthStencilState::ReadOnly : material->DepthStencilState);
+	const bool Translucent{ Material->BlendState != EBlendState::Opaque };
+	RenderCommand::SetDepthStencilState(Translucent && Material->DepthStencilState == EDepthStencilState::Default ? EDepthStencilState::ReadOnly : Material->DepthStencilState);
 
-	for (int i = 0; i < material->Textures.size(); i++)
-	{
-		RenderCommand::BindShaderResource(i, material->Textures[i], EShaderBindFlagBits::Pixel);
+	const int32 TextureCount{ Material->ParamLayout == EMaterialParamLayout::StaticMesh ? std::max(2, Material->Textures.Num()) : Material->Textures.Num() };
+	for (int32 Index{}; Index < TextureCount; ++Index) {
+		UTexture2D* Texture{ Index < Material->Textures.Num() ? Material->Textures[Index] : nullptr };
+		if (!Texture && Material->ParamLayout == EMaterialParamLayout::StaticMesh && Index < 2) {
+			Texture = UAssetManager::GetAssetByPath<UTexture2D>(Index == 0 ? "WhiteTexture" : "FlatNormalTexture");
+		}
+		if (Texture) {
+			RenderCommand::BindShaderResource(Index, Texture, EShaderBindFlagBits::Pixel);
+		}
 	}
-	RenderCommand::BindSamplerState(0, material->SamplerState, EShaderBindFlagBits::Pixel);
+	RenderCommand::BindSamplerState(0, Material->SamplerState, EShaderBindFlagBits::Pixel);
 }
 
 // b1 내용 채우고 꽂기
