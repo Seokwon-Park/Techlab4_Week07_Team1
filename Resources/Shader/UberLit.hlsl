@@ -193,13 +193,11 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
     float3 Lighting = CalcAmbient();
 #if LIGHTING_MODEL_LAMBERT
     Lighting += CalcDirectional(N);
-    [unroll]
     for (uint i = 0; i < NumPointLights; ++i)
     {
         Lighting += CalcPoint(PointLights[i], N, Input.worldPos);
     }
     
-    [unroll]
     for (uint s = 0; s < NumSpotLights; ++s)
     {
         Lighting += CalcSpot(SpotLights[s], N, Input.worldPos);

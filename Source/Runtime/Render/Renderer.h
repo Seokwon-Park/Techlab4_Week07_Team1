@@ -89,11 +89,11 @@ struct alignas(16) FLightingConstants
 	FDirectionalLightInfo Directional;
 	FPointLightInfo PointLights[MaxPointLights];
 	FSpotLightInfo SpotLights[MaxSpotLights];
-	FRectLightInfo RectLights[MaxRectLights];
+	//FRectLightInfo RectLights[MaxRectLights];
 	uint32 NumPointLights;
 	uint32 NumSpotLights;
-	uint32 NumRectLights;
-	uint32 Padding;
+	//uint32 NumRectLights;
+	uint32 Padding[2];
 };
 static_assert(sizeof(FAmbientLightInfo) == 16);
 static_assert(sizeof(FDirectionalLightInfo) == 32);
