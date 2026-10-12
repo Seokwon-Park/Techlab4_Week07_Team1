@@ -11,5 +11,12 @@ public:
 	ULightComponent();
 	virtual ~ULightComponent() override;
 protected:
+	virtual bool ShouldCreateRenderState() const override
+	{
+		return true;
+	}
+
+	virtual void CreateRenderState() override;
+	virtual void DestroyRenderState() override;
 private:
 };

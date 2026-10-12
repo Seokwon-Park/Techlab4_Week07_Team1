@@ -3,10 +3,12 @@
 #include <iostream>
 #include "../Core/Types.h"
 
+
 //template<typename T>
 //struct TVector;
 struct FVector;
 struct FMatrix;
+struct FLinearColor;
 
 struct FVector4 {
 
@@ -28,6 +30,7 @@ struct FVector4 {
 	explicit FVector4(float f);
 	FVector4(const FVector4& V1) = default;	// trivially copyable 유지 (바이너리 저장, memcpy)
 	FVector4(const FVector& V1, float w = 0.0f);
+	explicit FVector4(const FLinearColor& C);
 	// ~FVector();
 
 public:

@@ -33,18 +33,21 @@ cbuffer FireBallLightConstants : register(b3)
 
 struct VS_INPUT
 {
-    float3 p : POSITION; // Input position from vertex buffer
-    float3 n : NORMAL;
-    float4 c : COLOR; // Input color from vertex buffer
-    float2 t : TEXCOORD;
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float4 tangent : TANGENT;
+    float2 uv : TEXCOORD;
+    float4 color : COLOR;
 };
+
 
 struct PS_INPUT
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
-    float4 color : COLOR;
+    float4 tangent : TANGENT;
     float2 uv : TEXCOORD0;
+    float4 color : COLOR;
     float3 worldPos : TEXCOORD1;
 };
 
@@ -60,13 +63,14 @@ PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
 
-    output.worldPos = mul(float4(input.p, 1.0f), World).xyz;
-    output.position = mul(mul(float4(input.p, 1.0f), World), VP);
+    output.worldPos = mul(float4(input.position, 1.0f), World).xyz;
+    output.position = mul(mul(float4(input.position, 1.0f), World), VP);
     
     // w=0으로 이동 성분을 빼고 월드 공간으로 보낸다. 비균등 스케일이면 역전치가 필요하다.
-    output.normal = mul(float4(input.n, 0.0f), World).xyz;
-    output.color = input.c;
-    output.uv = input.t;
+    output.normal = mul(float4(input.normal, 0.0f), World).xyz;
+    output.tangent = input.tangent;
+    output.uv = input.uv;
+    output.color = input.color;
     return output;
 }
 

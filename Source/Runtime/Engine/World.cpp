@@ -154,6 +154,7 @@ void UWorld::ClearWorld()
 	}
 	// 액터를 지우기 전에 렌더 프록시와 틱 등록부터 푼다. ClearActors는 액터를 delete만 하므로,
 	// 그대로 두면 지워진 컴포넌트를 가리키는 프록시가 FScene에 남아 다음 프레임에 터진다.
+	Scene.RemoveAllLights();
 	Scene.RemoveAllPrimitives();
 	Scene.RemoveAllFogInfo();
 	HTR_LOG(Info, "{} : ", PersistentLevel->GetActorNum());
@@ -306,8 +307,8 @@ void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContex
 					if (SlotDest)
 					{
 						// 칸 VisibleIndex는 이 반복만 쓴다 → 스레드끼리 겹치지 않음
-						std::memcpy(SlotDest + size_t(VisibleIndex) * ObjectSlotBytes,
-							&Proxy->GetLocalToWorld(), sizeof(FMatrix));
+						WritePerObjectConstants(SlotDest + size_t(VisibleIndex) * ObjectSlotBytes,
+							Proxy->GetLocalToWorld(), Proxy->GetWorldToLocal());
 						Slot = VisibleIndex;
 					}
 
@@ -389,7 +390,8 @@ void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContex
 					if (!SlotDest || NextExtraSlot >= MaxSlots) break;
 					FRenderPacket& Packet = RenderQueue[p];
 					const FMatrix& Model = Packet.Proxy ? Packet.Proxy->GetLocalToWorld() : Packet.Model ? *Packet.Model : FMatrix::Identity;
-					std::memcpy(SlotDest + size_t(NextExtraSlot) * ObjectSlotBytes, &Model, sizeof(FMatrix));
+					const FMatrix WorldToLocal = Packet.Proxy ? Packet.Proxy->GetWorldToLocal() : Model.Inverse();
+					WritePerObjectConstants(SlotDest + size_t(NextExtraSlot) * ObjectSlotBytes, Model, WorldToLocal);
 					Packet.Slot = NextExtraSlot++;
 				}
 			}

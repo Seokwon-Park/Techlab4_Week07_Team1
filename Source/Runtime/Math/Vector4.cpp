@@ -2,6 +2,7 @@
 
 #include "Vector4.h"
 #include "EngineMath.h"
+#include "Color.h"
 
 #include <cmath>
 #include <assert.h>
@@ -36,6 +37,14 @@ FVector4::FVector4(const FVector& V1, float w)
 	Y = V1.Y;
 	Z = V1.Z;
 	W = w;
+}
+
+FVector4::FVector4(const FLinearColor& C)
+{
+	X = C.R;
+	Y = C.G;
+	Z = C.B;
+	W = C.A;
 }
 
 /* Functions */

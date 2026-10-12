@@ -12,5 +12,12 @@ class URectLightComponent :public ULocalLightComponent
 public:
 	URectLightComponent();
 	virtual ~URectLightComponent() override;
+
+	float GetWidth() const;
+	float GetHeight() const;
+
 private:
+	float HalfWidth;
+	float HalfHeight;
+
 };

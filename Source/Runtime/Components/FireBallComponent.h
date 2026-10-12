@@ -9,7 +9,7 @@ class UFireBallComponent : public USceneComponent
 		PROPERTY(Intensity)
 		PROPERTY(Radius)
 		PROPERTY(RadiusFalloff)
-		PROPERTY_TYPE(LightColor, Color)
+		PROPERTY_TYPE(LightColor, LinearColor)
 		REFLECT_END()
 
 public:
