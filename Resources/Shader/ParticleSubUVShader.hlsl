@@ -16,7 +16,7 @@ cbuffer subuv : register(b1)
     float AtlasRowSize;
     float AtlasColSize;
     float ParticleAlpha;
-    float4 Tint
+    float4 Tint;
 };
 
 Texture2D AtlasTexture : register(t0);

@@ -1,5 +1,6 @@
 #include "EnginePCH.h"
 #include "ExponentialHeightFogActor.h"
+#include "Asset/AssetManager.h"
 
 AExponentialHeightFogActor::AExponentialHeightFogActor()
 {
@@ -13,4 +14,13 @@ AExponentialHeightFogActor::AExponentialHeightFogActor()
 	BillboardComponent->SetEditorIcon(true);
 	BillboardComponent->SetupAttachment(ExponentialHeightFogComponent);
 	BillboardComponent->SetHiddenInDetails(true);
+
+	UMaterial* Base = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");
+    UTexture2D* Icon = UAssetManager::Get().LoadTexture("Assets/Icons/Fog.png");
+    if (Base && Icon)
+    {
+        UMaterial* IconMat = UMaterial::CreateInstance(Base);
+        IconMat->Textures[0] = Icon;                 
+        BillboardComponent->SetMaterial(0, IconMat);
+    }
 }

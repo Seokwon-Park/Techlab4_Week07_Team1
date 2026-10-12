@@ -658,6 +658,7 @@ std::size_t FMultipleViewportsAdapter::GetVisibleObjectCount(const int32 ViewInd
 void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQueue& OutQueue, FRenderQueue& OutIconQueue)
 {
     OutQueue.Reset();
+    OutIconQueue.Reset();
     PendingStaticMeshes.Reset();
     LODInputs.Reset();
     if (!IsViewActive(ViewIndex)) return;
@@ -728,7 +729,7 @@ void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQ
 
             // Editor Icon 이면 IconQueue로 빼기
             FRenderQueue& Target = Billboard->IsEditorIcon()? OutIconQueue : OutQueue;
-            
+
             Billboard->SubmitToRenderQueue(
                 Target,
                 BuildEngineBillboardMatrix(ViewIndex, Billboard->GetWorldLocation(), Scale.Y, Scale.Z));
