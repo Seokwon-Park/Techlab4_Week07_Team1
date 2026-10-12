@@ -40,9 +40,9 @@ cbuffer ViewParams : register(b4)
 };
 
 // LightModel
-#define GOURAUD 0
-#define LAMBERT 1
-#define BLINNPHONG 2
+#define GOURAUD 0       // per-vertex lambert
+#define LAMBERT 1       // per-pixel lambert
+#define BLINNPHONG 2    // per-pixel blinnphong
 
 // LightType
 #define DIRECTIONAL 0
@@ -52,7 +52,7 @@ cbuffer ViewParams : register(b4)
 #define FIREBALL 4
 
 #ifndef LIGHTING_MODEL
-#define LIGHTING_MODEL LAMBERT
+#define LIGHTING_MODEL LAMBERT      // Default
 #endif
 
 // 빛이 오는 방향과 감쇠를 구하는 함수
@@ -69,21 +69,6 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     float3 H; // Normalize(L+V)
     float atten = 1.0f;
     float shininess = 1.0f;
-
-    float3 toLight = samplePos - worldPos;
-    float distLight = length(toLight);
-    L = toLight / max(distLight, 0.0001f);
-
-    float3 toCam = CameraPos - worldPos;
-    float distCam = length(toCam);
-    V = toCam / max(distCam, 0.0001f);
-
-    H = normalize(L + V);
-
-
-    #if LIGHTING_MODEL == BLINNPHONG
-        specular = pow(dot(N, H), shininess);
-    #endif
 
     if (type == DIRECTIONAL)
     {
@@ -107,6 +92,10 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
             samplePos = lightPos + right * x + up * y;
         }
 
+        float3 toLight = samplePos - worldPos;
+        float dist = length(toLight);
+        L = toLight / max(dist, 0.0001f);
+
         // 마지막 Light에 곱해질 예정 (반경을 기준으로 멀리 있을수록 0)
         atten = pow(saturate(1.0f - dist / radius), max(light.Params.x, 0.001f));   // 거리 감쇠
 
@@ -121,7 +110,22 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
         }
     }
 
-    return color * saturate(dot(N, L)) * atten * intensity;
+    float NL = saturate(dot(N, L));
+    
+    // Diffuse
+    float3 result = color * NL;
+    
+    #if LIGHTING_MODEL == BLINNPHONG
+        
+        V = normalize(samplePos - worldPos); 
+        H = normalize(L + V);
+        float specular = (NL > 0.0f)? pow(saturate(dot(N, H)), shininess) : 0.0f;
+        
+        // specular
+        result += color * spec;
+    #endif
+
+    return result * atten * intensity;
 }
 
 struct VS_INPUT
@@ -181,9 +185,11 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
 
     float3 totalLight = float3(0, 0, 0);
 
+    // Gouraud Shading 인 경우 VS에서 계산한 Light를 사용
     #if LIGHTING_MODEL == GOURAUD
         totalLight = input.vertexLight;
     
+    // Blinn Phong Shading인 경우 계산
     #else
     for (uint i = 0; i < LightCount; ++i)
     {
