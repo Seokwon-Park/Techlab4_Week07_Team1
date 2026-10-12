@@ -15,10 +15,20 @@
 #include "UObject/UObjectGlobals.h"
 
 #include "Render/ImageLoader.h"
+#include <cctype>
 
 
 namespace
 {
+	FString GetAssetExtension(const FString& Path) {
+		const std::u8string UTF8Path{ Path.begin(), Path.end() };
+		FString Extension{ std::filesystem::path{ UTF8Path }.extension().string() };
+		for (char& Character : Extension) {
+			Character = static_cast<char>(std::tolower(static_cast<unsigned char>(Character)));
+		}
+		return Extension;
+	}
+
 	UStaticMesh* CreateStaticMesh(const FStaticMeshData* MeshData)
 	{
 		if (!MeshData || !MeshData->Vertices.Num() || !MeshData->Indices.Num())
@@ -89,6 +99,13 @@ namespace
 					Material->Textures[0] = Texture;
 				}
 			}
+
+			if (!Slot.mNormalTexturePath.empty()) {
+				if (UTexture2D* NormalTexture{ UAssetManager::Get().LoadTexture(Slot.mNormalTexturePath) }) {
+					Material->Textures[1] = NormalTexture;
+				}
+			}
+
 			Mesh->Materials.Add(Material);
 		}
 
@@ -153,26 +170,20 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 	}
 }
 
-void UAssetManager::LoadAsset(const FString& Key, const FString& Path)
-{
-	FString Extension = fs::path(Path).extension().string();
-	if (Extension == ".png")
-	{
-		if (UTexture2D* Texture = LoadTexture(Path))
-		{
+void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
+	const FString Extension{ GetAssetExtension(Path) };
+	if (Extension == ".png" || Extension == ".dds") {
+		if (UTexture2D* Texture{ LoadTexture(Path) }) {
 			AssetMap[Key] = Texture;
 		}
 	}
-	if (Extension == ".json")
-	{
-		FString TexturePath = fs::path(Path).replace_extension(".png").string();
-		if (UFont* Font = LoadFontAtlas(Path, TexturePath))
-		{
+	if (Extension == ".json") {
+		const FString TexturePath{ fs::path{ Path }.replace_extension(".png").string() };
+		if (UFont* Font{ LoadFontAtlas(Path, TexturePath) }) {
 			AssetMap[Key] = Font;
 		}
 	}
-	if (Extension == ".obj")
-	{
+	if (Extension == ".obj") {
 		LoadObjStaticMesh(Path);
 	}
 }
@@ -321,32 +332,38 @@ void UAssetManager::RegisterAsset(const FString& Key, URenderAsset* Asset)
 	AssetMap[Key] = Asset;
 }
 
-UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool bGenerateMips)
-{
-	if (URenderAsset** Found = AssetMap.Find(InPath))
-	{
+UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool GenerateMips) {
+	if (URenderAsset** Found{ AssetMap.Find(InPath) }) {
 		return Cast<UTexture2D>(*Found);
 	}
 
-	FImageData Data = ImageLoader::LoadAuto(InPath);
-	if (!Data.IsValid()) return nullptr;
+	TUniquePtr<FTexture2D> Resource{};
+	if (GetAssetExtension(InPath) == ".dds") {
+		Resource = RenderCommand::LoadDDSTexture(InPath);
+	} else {
+		const FImageData Data{ ImageLoader::LoadAuto(InPath) };
+		if (!Data.IsValid()) {
+			return nullptr;
+		}
 
-	D3D11_TEXTURE2D_DESC Desc{};
-	Desc.Width = Data.Width;
-	Desc.Height = Data.Height;
-	Desc.ArraySize = 1;
-	Desc.Format = Data.Format;              // 로더가 정한 포맷 (.hdr이면 float)
-	Desc.SampleDesc.Count = 1;
-	Desc.MipLevels = bGenerateMips ? 0 : 1;
-	Desc.Usage = bGenerateMips ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
-	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | (bGenerateMips ? D3D11_BIND_RENDER_TARGET : 0);
-	Desc.MiscFlags = bGenerateMips ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0;
+		D3D11_TEXTURE2D_DESC Desc{};
+		Desc.Width = Data.Width;
+		Desc.Height = Data.Height;
+		Desc.ArraySize = 1;
+		Desc.Format = Data.Format;
+		Desc.SampleDesc.Count = 1;
+		Desc.MipLevels = GenerateMips ? 0 : 1;
+		Desc.Usage = GenerateMips ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
+		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | (GenerateMips ? D3D11_BIND_RENDER_TARGET : 0);
+		Desc.MiscFlags = GenerateMips ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0;
+		Resource = RenderCommand::CreateTexture2D(Desc, Data);
+	}
 
-	TUniquePtr<FTexture2D> Resource = RenderCommand::CreateTexture2D(Desc, Data);
+	if (!Resource || !Resource->GetSRV()) {
+		return nullptr;
+	}
 
-	if (!Resource) return nullptr;
-
-	UTexture2D* Asset = NewObject<UTexture2D>();
+	UTexture2D* Asset{ NewObject<UTexture2D>() };
 	Asset->SetResource(std::move(Resource));
 	RegisterAsset(InPath, Asset);
 

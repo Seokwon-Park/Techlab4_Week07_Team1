@@ -5,6 +5,7 @@
 #include "Texture2D.h"
 #include "TextureCube.h"
 #include "PipelineState.h"
+#include "DDSTextureLoader11.h"
 
 FRenderDevice::FRenderDevice()
 {
@@ -148,6 +149,36 @@ TUniquePtr<FTexture2D> FRenderDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC
 	TUniquePtr<FTexture2D> Texture = MakeUnique<FTexture2D>(Device.Get(), Desc, InitialData);
 
 	return Texture;
+}
+
+TUniquePtr<FTexture2D> FRenderDevice::LoadDDSTexture(const FString& Path) {
+	const std::u8string UTF8Path{ Path.begin(), Path.end() };
+	const std::wstring FilePath{ std::filesystem::path{ UTF8Path }.wstring() };
+	ComPtr<ID3D11Resource> Resource{};
+	const HRESULT LoadResult{ DirectX::CreateDDSTextureFromFile(Device.Get(), FilePath.c_str(), Resource.GetAddressOf(), nullptr) };
+	if (FAILED(LoadResult)) {
+		HTR_LOG(Error, "[Texture] DDS load failed: {} (hr=0x{:08X})", Path, static_cast<uint32>(LoadResult));
+		return nullptr;
+	}
+
+	ComPtr<ID3D11Texture2D> Texture{};
+	if (FAILED(Resource.As(&Texture))) {
+		HTR_LOG(Error, "[Texture] DDS is not a 2D texture: {}", Path);
+		return nullptr;
+	}
+
+	D3D11_TEXTURE2D_DESC Desc{};
+	Texture->GetDesc(&Desc);
+	if (Desc.ArraySize != 1 || (Desc.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0) {
+		HTR_LOG(Error, "[Texture] DDS arrays and cubemaps are not supported by UTexture2D: {}", Path);
+		return nullptr;
+	}
+
+	TUniquePtr<FTexture2D> LoadedTexture{ MakeUnique<FTexture2D>(Device.Get(), std::move(Resource), Desc) };
+	if (!LoadedTexture->GetSRV()) {
+		return nullptr;
+	}
+	return LoadedTexture;
 }
 
 TUniquePtr<FTextureCube> FRenderDevice::CreateTextureCube(const D3D11_TEXTURE2D_DESC& Desc, const TArray<const void*>& InitialDatas)

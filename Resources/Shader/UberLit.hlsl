@@ -193,8 +193,11 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET {
     const float3 T = { normalize(Input.tangent.xyz - VertexNormal * dot(VertexNormal, Input.tangent.xyz)) };
     const float3 B = { cross(VertexNormal, T) * (Input.tangent.w < 0.0f ? -1.0f : 1.0f) };
     const float3 TangentNormal = { NormalTexture.Sample(g_Sample, UV).xyz * 2.0f - 1.0f };
-    const float3 N = { normalize(T * TangentNormal.x + B * TangentNormal.y + VertexNormal * TangentNormal.z) };
+    const float3 N = { normalize(T * TangentNormal.x + B * -TangentNormal.y + VertexNormal * TangentNormal.z) };
 
+    
+    // return float4(TangentNormal); // 노멀맵 확인용
+    
     float3 Lighting = { CalcAmbient() };
 #if LIGHTING_MODEL_LAMBERT
     Lighting += CalcDirectional(N);
