@@ -115,6 +115,9 @@ struct PS_INPUT
     float4 tangent : TANGENT;
     float2 uv : TEXCOORD0;
     float4 color : COLOR;
+#if LIGHTING_MODEL_GOURAUD
+    float3 vertexLighting : COLOR1;
+#endif
 };
 
 float LocalLightFactor(float3 LightPos, float Radius, float FalloffExp, float3 N, float3 WorldPos, out float3 L)
@@ -152,6 +155,22 @@ float3 CalcSpot(FSpotLightInfo S, float3 N, float3 WorldPos)
     return S.Color * S.Intensity * Base * Cone;
 }
 
+float3 CalcLighting(float3 N, float3 WorldPos)
+{
+    float3 Result = 0.f;
+    Result += CalcDirectional(N);
+    for (uint i = 0; i < NumPointLights; ++i)
+    {
+        Result += CalcPoint(PointLights[i], N, WorldPos);
+    }
+    
+    for (uint s = 0; s < NumSpotLights; ++s)
+    {
+        Result += CalcSpot(SpotLights[s], N, WorldPos);
+    }
+    return Result;
+}
+
 //float3 CalcRect(FRectLightInfo R, float3 N, float3 WorldPos)
 //{
 //    const float3 Up = cross(R.Direction, R.Right);
@@ -185,6 +204,9 @@ PS_INPUT mainVS(VS_INPUT Input)
 
     Output.uv = Input.uv;
     Output.color = Input.color;
+#if LIGHTING_MODEL_GOURAUD
+    Output.vertexLighting = CalcLighting(normalize(Output.normal), Output.worldPos);
+#endif
     return Output;
 }
 
@@ -199,19 +221,16 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
 #if LIGHTING_MODEL_UNLIT
     // 조명 없이 표면색 그대로
     return float4(Albedo.rgb, Alpha);
+    
 #else
     float3 Lighting = CalcAmbient();
-#if LIGHTING_MODEL_LAMBERT
-    Lighting += CalcDirectional(N);
-    for (uint i = 0; i < NumPointLights; ++i)
-    {
-        Lighting += CalcPoint(PointLights[i], N, Input.worldPos);
-    }
     
-    for (uint s = 0; s < NumSpotLights; ++s)
-    {
-        Lighting += CalcSpot(SpotLights[s], N, Input.worldPos);
-    }
+#if LIGHTING_MODEL_LAMBERT
+    Lighting += CalcLighting(N, Input.worldPos);
+    
+#elif LIGHTING_MODEL_GOURAUD
+    Lighting += Input.vertexLighting;
+    
 #endif
 
     return float4(Albedo.rgb * Lighting, Alpha);
