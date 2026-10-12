@@ -161,6 +161,11 @@ void UWorld::ClearWorld()
 
 void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContext* LODView, const FFrustumPlanes* Frustum, FRenderer* Renderer)
 {
+	if (Renderer) {
+		const FVector CameraWorldPosition{ LODView ? LODView->CameraPosition : MainCamera ? MainCamera->GetCameraComponent()->GetWorldLocation() : FVector{} };
+		Renderer->SetLights(Scene.LightProxies, CameraWorldPosition);
+	}
+
 	// 멤버로 두어 매 프레임 용량을 재사용한다.
 	RenderStats.Reset();
 	VisibleProxies.Reset();

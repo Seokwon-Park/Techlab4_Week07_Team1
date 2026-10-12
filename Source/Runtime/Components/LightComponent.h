@@ -4,13 +4,6 @@
 
 class FLineBatcher;
 
-enum class ELightType {
-	Directional,
-	Point,
-	Spot,
-	Rect
-};
-
 class ULightComponent : public ULightComponentBase {
 	DECLARE_CLASS(ULightComponent, ULightComponentBase)
 
@@ -27,6 +20,7 @@ public:
 public:
 	virtual void OnRegister() override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
+	virtual void OnTransformDirty() override;
 	bool GetCastShadows() const;
 	void SetCastShadows(bool InCastShadows);
 	float GetDiffuseScale() const;

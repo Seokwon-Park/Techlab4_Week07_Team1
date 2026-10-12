@@ -6,6 +6,8 @@
 
 #include "RenderingInfo.h"
 #include "Occlusion/GPUOcclusion.h"
+#include "Engine/LightProxy.h"
+#include <vector>
 
 constexpr uint32 ObjectSlotBytes = 256;
 constexpr uint32 MaxFireBalls = 16;
@@ -55,6 +57,23 @@ struct alignas(16) FFireBallLightConstants
 
 class FRenderer
 {
+private:
+	struct FLightConstants {
+		uint32 mAmbientLightCount{};
+		uint32 mDirectionalLightCount{};
+		uint32 mPointLightCount{};
+		uint32 mSpotLightCount{};
+		uint32 mRectLightCount{};
+		uint32 mPadding[3]{};
+	};
+
+	struct FPhongConstants {
+		FVector mCameraWorldPosition{};
+		float mShininess{ 16.0f };
+		FVector mSpecularColor{ 0.1f, 0.1f, 0.1f };
+		float mPadding{};
+	};
+
 public:
 	bool Init();
 
@@ -90,6 +109,11 @@ public:
 	void EndObjectConstants();
 
 	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	void SetLights(const TArray<LightProxy*>& LightProxies, const FVector& CameraWorldPosition);
+
+private:
+	bool EnsureLightBufferCapacity(uint32 LightCount);
+	void BindLightResources(const FPixelShader* PixelShader);
 
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
@@ -130,4 +154,12 @@ private:
 
 	TUniquePtr<FConstantBuffer> FireBallLightCB;
 	FFireBallLightConstants FireBallLightData{};
+	std::vector<FLightRenderParameters> mLightParameters{};
+	FLightConstants mLightConstants{};
+	FPhongConstants mPhongConstants{};
+	TUniquePtr<FConstantBuffer> mLightConstantsCB{};
+	TUniquePtr<FConstantBuffer> mPhongConstantsCB{};
+	ComPtr<ID3D11Buffer> mLightBuffer{};
+	ComPtr<ID3D11ShaderResourceView> mLightSRV{};
+	uint32 mLightBufferCapacity{};
 };

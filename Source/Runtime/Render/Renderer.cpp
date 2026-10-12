@@ -59,10 +59,22 @@ namespace
 
 bool FRenderer::Init()
 {
+	static_assert(sizeof(FLightRenderParameters) == 80);
+	static_assert(sizeof(FLightConstants) == 32);
+	static_assert(sizeof(FPhongConstants) == 32);
+
 	bUsePerObjectSlots = RenderCommand::SupportsConstantBufferOffsets();
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
 	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
+	mLightConstantsCB = RenderCommand::CreateConstantBuffer(sizeof(FLightConstants));
+	mPhongConstantsCB = RenderCommand::CreateConstantBuffer(sizeof(FPhongConstants));
+	if (!mLightConstantsCB || !mLightConstantsCB->GetBuffer() || !mPhongConstantsCB || !mPhongConstantsCB->GetBuffer() || !EnsureLightBufferCapacity(0u)) {
+		return false;
+	}
+
+	RenderCommand::UpdateBufferData(mLightConstantsCB.get(), &mLightConstants, sizeof(FLightConstants));
+	RenderCommand::UpdateBufferData(mPhongConstantsCB.get(), &mPhongConstants, sizeof(FPhongConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -469,6 +481,7 @@ void FRenderer::BindMaterial(UMaterial* material)
 	{
 		RenderCommand::BindShaderResource(i, material->Textures[i], EShaderBindFlagBits::Pixel);
 	}
+	BindLightResources(material->Shader->PixelShader);
 	RenderCommand::BindSamplerState(0, material->SamplerState, EShaderBindFlagBits::Pixel);
 }
 
@@ -530,4 +543,99 @@ void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
 {
 	FireBallLightData = LightData;
 	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
+}
+
+void FRenderer::SetLights(const TArray<LightProxy*>& LightProxies, const FVector& CameraWorldPosition) {
+	mLightConstants = FLightConstants{};
+	mLightParameters.clear();
+	mLightParameters.reserve(LightProxies.Num());
+	const ELightType LightTypes[]{ ELightType::Directional, ELightType::Point, ELightType::Spot, ELightType::Rect };
+	uint32* LightCounts[]{ &mLightConstants.mDirectionalLightCount, &mLightConstants.mPointLightCount, &mLightConstants.mSpotLightCount, &mLightConstants.mRectLightCount };
+	for (uint32 TypeIndex{}; TypeIndex < 4u; ++TypeIndex) {
+		for (LightProxy* Proxy : LightProxies) {
+			if (!Proxy || !Proxy->IsVisible() || Proxy->GetLightType() != LightTypes[TypeIndex]) {
+				continue;
+			}
+
+			FLightRenderParameters Parameters{ Proxy->GetRenderParameters() };
+			const float Intensity{ FMath::Max(Proxy->GetIntensity(), 0.0f) };
+			Parameters.LightColor.X *= Intensity;
+			Parameters.LightColor.Y *= Intensity;
+			Parameters.LightColor.Z *= Intensity;
+			mLightParameters.push_back(Parameters);
+			++*LightCounts[TypeIndex];
+		}
+	}
+
+	const uint32 LightCount{ static_cast<uint32>(mLightParameters.size()) };
+	if (!EnsureLightBufferCapacity(LightCount)) {
+		mLightConstants = FLightConstants{};
+		HTR_LOG(Error, "Failed to create light structured buffer");
+	} else if (LightCount > 0u) {
+		D3D11_BOX UploadBox{};
+		UploadBox.right = LightCount * static_cast<uint32>(sizeof(FLightRenderParameters));
+		UploadBox.bottom = 1u;
+		UploadBox.back = 1u;
+		RenderCommand::GetContext()->UpdateSubresource(mLightBuffer.Get(), 0, &UploadBox, mLightParameters.data(), 0, 0);
+	}
+
+	mPhongConstants.mCameraWorldPosition = CameraWorldPosition;
+	RenderCommand::UpdateBufferData(mLightConstantsCB.get(), &mLightConstants, sizeof(FLightConstants));
+	RenderCommand::UpdateBufferData(mPhongConstantsCB.get(), &mPhongConstants, sizeof(FPhongConstants));
+}
+
+bool FRenderer::EnsureLightBufferCapacity(uint32 LightCount) {
+	if (LightCount <= mLightBufferCapacity && mLightBuffer && mLightSRV) {
+		return true;
+	}
+
+	const uint32 MaximumCapacity{ UINT32_MAX / static_cast<uint32>(sizeof(FLightRenderParameters)) };
+	if (LightCount > MaximumCapacity) {
+		return false;
+	}
+
+	const uint32 ExpandedCapacity{ mLightBufferCapacity <= MaximumCapacity / 2u ? mLightBufferCapacity * 2u : MaximumCapacity };
+	const uint32 NewCapacity{ FMath::Max(LightCount, FMath::Max(ExpandedCapacity, 16u)) };
+	D3D11_BUFFER_DESC BufferDescription{};
+	BufferDescription.ByteWidth = NewCapacity * static_cast<uint32>(sizeof(FLightRenderParameters));
+	BufferDescription.Usage = D3D11_USAGE_DEFAULT;
+	BufferDescription.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	BufferDescription.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	BufferDescription.StructureByteStride = sizeof(FLightRenderParameters);
+	ComPtr<ID3D11Buffer> Buffer{};
+	ID3D11Device* Device{ RenderCommand::GetDevice() };
+	if (FAILED(Device->CreateBuffer(&BufferDescription, nullptr, Buffer.GetAddressOf()))) {
+		return false;
+	}
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC ViewDescription{};
+	ViewDescription.Format = DXGI_FORMAT_UNKNOWN;
+	ViewDescription.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	ViewDescription.Buffer.NumElements = NewCapacity;
+	ComPtr<ID3D11ShaderResourceView> View{};
+	if (FAILED(Device->CreateShaderResourceView(Buffer.Get(), &ViewDescription, View.GetAddressOf()))) {
+		return false;
+	}
+
+	mLightBuffer = Buffer;
+	mLightSRV = View;
+	mLightBufferCapacity = NewCapacity;
+	return true;
+}
+
+void FRenderer::BindLightResources(const FPixelShader* PixelShader) {
+	const FShaderBindings& Bindings{ PixelShader->GetBindings() };
+	const FConstantBufferBinding* LightBinding{ Bindings.FindConstantBuffer("LightConstants") };
+	if (LightBinding) {
+		RenderCommand::BindConstantBuffer(LightBinding->Slot, mLightConstantsCB.get(), EShaderBindFlagBits::Pixel);
+		ID3D11ShaderResourceView* View{ mLightSRV.Get() };
+		RenderCommand::GetContext()->PSSetShaderResources(1, 1, &View);
+	} else {
+		RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	}
+
+	const FConstantBufferBinding* PhongBinding{ Bindings.FindConstantBuffer("PhongConstants") };
+	if (PhongBinding) {
+		RenderCommand::BindConstantBuffer(PhongBinding->Slot, mPhongConstantsCB.get(), EShaderBindFlagBits::Pixel);
+	}
 }

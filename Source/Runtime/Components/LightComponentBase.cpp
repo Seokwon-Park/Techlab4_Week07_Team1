@@ -13,6 +13,8 @@ void ULightComponentBase::OnRegister() {
 	RenderParameters = FLightRenderParameters{};
 	RenderParameters.LightColor = mLightColor;
 	RenderParameters.WorldPosition = GetWorldLocation();
+	mLightProxy.SetIntensity(mIntensity);
+	mLightProxy.SetVisible(mVisible);
 
 	Super::GetWorld()->GetScene().RegisterLightProxy(&mLightProxy);
 }
@@ -23,6 +25,16 @@ void ULightComponentBase::OnUnregister() {
 	Super::GetWorld()->GetScene().UnregisterLightProxy(&mLightProxy);
 }
 
+void ULightComponentBase::Serialize(FStructuredArchive::FRecord Record) {
+	Super::Serialize(Record);
+
+	if (Record.GetUnderlyingArchive().IsLoading()) {
+		const FProperty Property{};
+		PostEditChangeProperty(Property);
+		MarkTransformDirty();
+	}
+}
+
 void ULightComponentBase::PostEditChangeProperty(const FProperty& Property) {
 	Super::PostEditChangeProperty(Property);
 	SetIntensity(mIntensity);
@@ -31,6 +43,8 @@ void ULightComponentBase::PostEditChangeProperty(const FProperty& Property) {
 
 	mLightProxy.GetRenderParameters().LightColor = FVector4{ mLightColor.X, mLightColor.Y, mLightColor.Z, mLightColor.W };
 	mLightProxy.GetRenderParameters().WorldPosition = GetWorldLocation();
+	mLightProxy.SetIntensity(mIntensity);
+	mLightProxy.SetVisible(mVisible);
 
 }
 

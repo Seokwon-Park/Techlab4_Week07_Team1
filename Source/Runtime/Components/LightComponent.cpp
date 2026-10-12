@@ -7,6 +7,7 @@ ULightComponent::~ULightComponent() = default;
 
 void ULightComponent::OnRegister() {
 	Super::OnRegister();
+	mLightProxy.SetLightType(GetLightType());
 
 	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
 	RenderParameters.WorldDirection = GetLightDirection();
@@ -19,11 +20,20 @@ void ULightComponent::PostEditChangeProperty(const FProperty& Property) {
 	SetCastShadows(mCastShadows);
 	SetDiffuseScale(mDiffuseScale);
 	SetSpecularScale(mSpecularScale);
+	mLightProxy.SetLightType(GetLightType());
 
 	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
 	RenderParameters.WorldDirection = GetLightDirection();
 	RenderParameters.DiffuseScale = mDiffuseScale;
 	RenderParameters.SpecularScale = mSpecularScale;
+}
+
+void ULightComponent::OnTransformDirty() {
+	Super::OnTransformDirty();
+
+	FLightRenderParameters& RenderParameters{ mLightProxy.GetRenderParameters() };
+	RenderParameters.WorldPosition = GetWorldLocation();
+	RenderParameters.WorldDirection = GetLightDirection();
 }
 
 bool ULightComponent::GetCastShadows() const {

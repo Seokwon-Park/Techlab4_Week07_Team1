@@ -19,6 +19,7 @@ public:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 public:
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	virtual void PostEditChangeProperty(const FProperty& Property) override;
 	float GetIntensity() const;
 	void SetIntensity(float InIntensity);
@@ -30,7 +31,7 @@ public:
 
 protected:
 	float mIntensity{ 1.0f };
-	FVector4 mLightColor{};
+	FVector4 mLightColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 	bool mVisible{ true };
 
 	LightProxy mLightProxy; 
