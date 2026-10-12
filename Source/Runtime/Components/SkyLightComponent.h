@@ -1,10 +1,10 @@
 #pragma once
 
-#include "LocalLightComponent.h"
+#include "LightComponent.h"
 
-class USkyLightComponent : public ULocalLightComponent
+class USkyLightComponent : public ULightComponent
 {
-	DECLARE_CLASS(USkyLightComponent, ULocalLightComponent)
+	DECLARE_CLASS(USkyLightComponent, ULightComponent)
 	REFLECT_START(USkyLightComponent)
 	REFLECT_END()
 public:
@@ -13,9 +13,6 @@ public:
 
 	ELightType GetLightType() const { return ELightType::Sky; }
 	
-	// spherical wireframe
-	void DrawDebug(FLineBatcher* LineBatcher) const override;
-
 	void FillLightData(FLightRenderData& Out) const override;
 
 protected:

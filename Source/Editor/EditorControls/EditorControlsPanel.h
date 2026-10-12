@@ -12,6 +12,7 @@
 #include "GameFramework/Actor/SpotLightActor.h"
 #include "GameFramework/Actor/PointLightActor.h"
 #include "GameFramework/Actor/DirectionalLightActor.h"
+#include "GameFramework/Actor/SkyLightActor.h"
 #include "GameFramework/Actor/ExponentialHeightFogActor.h"
 
 class FMultipleViewportsAdapter;
@@ -35,11 +36,12 @@ public:
 
 	int32 SelectedIndex = 0;
 
-	const char* Items[10] ={
+	const char* Items[11] ={
 		"Actor",
 		"StaticMesh",
 		"Particle",
 		"Text",
+		"SkyLight",
 		"DirectionalLight",
 		"PointLight",
 		"RectLight",
@@ -60,6 +62,7 @@ public:
 		AStaticMeshActor::StaticClass(),  
 		AParticleActor::StaticClass(),
 		ATextRenderActor::StaticClass(),
+		ASkyLightActor::StaticClass(),
 		ADirectionalLightActor::StaticClass(),
 		APointLightActor::StaticClass(),
 		ARectLightActor::StaticClass(),

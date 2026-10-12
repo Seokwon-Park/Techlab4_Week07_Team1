@@ -50,6 +50,7 @@ cbuffer ViewParams : register(b4)
 #define SPOT 2
 #define RECT 3
 #define FIREBALL 4
+#define Sky 5
 
 #ifndef LIGHTING_MODEL
 #define LIGHTING_MODEL LAMBERT      // Default
@@ -58,6 +59,8 @@ cbuffer ViewParams : register(b4)
 // 빛이 오는 방향과 감쇠를 구하는 함수
 float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
 {
+    if (type == SKY) return color * intensity;
+
     int type = (int)(light.DirectionType.w + 0.5f);
     float3 dir = light.DirectionType.xyz;           // 빛의 방향
     float3 lightPos = light.PositionRadius.xyz;     // 빛의 위치
@@ -149,7 +152,7 @@ Texture2D g_txColor : register(t0);
 SamplerState g_Sample : register(s0);
 
 // 전역광
-static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
+// static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
 
 PS_INPUT mainVS(VS_INPUT input)
 {
@@ -199,6 +202,6 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     // Opaque 알파 1로 고정
     float alpha = bOpaque > 0.5f ? 1.0f : albedo.a;
 
-    float3 finalRGB = albedo.rgb * (AmbientColor + totalLight);
+    float3 finalRGB = albedo.rgb * totalLight;
     return float4(finalRGB, alpha);
 }

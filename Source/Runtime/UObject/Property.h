@@ -3,6 +3,7 @@
 #include "Core/EngineString.h"
 #include "Math/EngineMath.h"
 #include "Math/Transform.h"
+#include "Math/Color.h"
 
 class UMaterial;
 class UFont;
