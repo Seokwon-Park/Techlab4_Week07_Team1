@@ -13,9 +13,11 @@ struct VS_INPUT
 {
     float3 position : POSITION;
     float3 normal : NORMAL;
-    float4 color : COLOR;
+    float4 tangent : TANGENT;
     float2 uv : TEXCOORD;
+    float4 color : COLOR;
 };
+
 
 // 확장된 Clip 위치와 선택 Outline 색상을 전달한다.
 struct PS_INPUT

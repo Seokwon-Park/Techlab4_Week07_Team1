@@ -90,6 +90,7 @@ public:
 	FVector ComponentVelocity;
 
 protected:
+
 	bool bTransformDirty;
 	FTransform Transform;
 

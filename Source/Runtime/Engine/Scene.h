@@ -4,11 +4,12 @@
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/FireBallComponent.h"
+#include "Components/LightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
 #include "Render/Renderer.h"
-
+ 
 struct FExponentialHeightFogSceneInfo
 {
 	uint32 Id;
@@ -23,6 +24,12 @@ public:
 	void RemovePrimitive(UPrimitiveComponent* Component);
 	// 모든 프록시를 한 번에 지운다. 액터를 통째로 지우기 전(ClearWorld)에 불러야 지워진 컴포넌트를 가리키는 프록시가 남지 않는다.
 	void RemoveAllPrimitives();
+
+	void AddLight(ULightComponent* Component);
+	void RemoveLight(ULightComponent* Component);
+
+	void RemoveAllLights();
+	void UpdateLights(FRenderer* Renderer);
 
 	void AddFogInfo(uint32 Id, const FFogInfo& FogInfo);
 	void RemoveFogInfo(uint32 Id);
@@ -58,4 +65,7 @@ public:
 	bool bElementListChanged = false;
 	
 	TArray<UFireBallComponent*> FireBallComponents;
+
+	TArray<ULightComponent*> LightComponents;
+
 };

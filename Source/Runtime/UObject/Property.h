@@ -2,12 +2,13 @@
 
 #include "Core/EngineString.h"
 #include "Math/EngineMath.h"
+#include "Math/Color.h"
 #include "Math/Transform.h"
 
 class UMaterial;
 class UFont;
 
-enum class EPropertyType { Unknown, Float, Int, String, Bool, Vector, Vector4, Color, Rotator, Transform, Object};
+enum class EPropertyType { Unknown, Float, Int, String, Bool, Vector, Vector4, Color, LinearColor, Rotator, Transform, Object};
 
 template <typename T>
 constexpr EPropertyType GetPropertyType()
@@ -37,6 +38,8 @@ DEFINE_PROPERTY_TYPE(FVector, Vector)
 DEFINE_PROPERTY_TYPE(FVector4, Vector4)
 DEFINE_PROPERTY_TYPE(FTransform, Transform)
 DEFINE_PROPERTY_TYPE(FRotator, Rotator)
+DEFINE_PROPERTY_TYPE(FColor, Color)
+DEFINE_PROPERTY_TYPE(FLinearColor, LinearColor)
 
 //DragFloat, DragInt, DragFloat3, DragFloat4, ColorEdit4 등 ImGui 위젯과 관련된 메타데이터를 저장하는 구조체
 struct FProPertyWidgetMeta

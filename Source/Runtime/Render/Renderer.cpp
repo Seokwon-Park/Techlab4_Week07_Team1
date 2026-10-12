@@ -63,6 +63,7 @@ bool FRenderer::Init()
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
 	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
+	LightingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightingConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -118,7 +119,8 @@ void FRenderer::UploadPerObjectConstants()
 	{
 		FRenderPacket& P = RenderPackets[Index];
 		const FMatrix& Model = GetPacketWorld(P);
-		std::memcpy(Dest + static_cast<size_t>(Index) * ObjectSlotBytes, &Model, sizeof(FMatrix));
+		const FMatrix WorldToLocal = P.Proxy ? P.Proxy->GetWorldToLocal() : Model.Inverse();
+		WritePerObjectConstants(Dest + static_cast<size_t>(Index) * ObjectSlotBytes, Model, WorldToLocal);
 		P.Slot = Index;
 	}
 
@@ -142,6 +144,7 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
 	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
 
 	DrawStaticGroups();
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
@@ -151,6 +154,7 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
 	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -522,6 +526,7 @@ void FRenderer::UpdatePerObjectConstants(const FMatrix& World)
 	FPerObjectConstants Constants;
 
 	Constants.World = World;
+	Constants.NormalMatrix = World.Inverse().GetTransposed();
 
 	RenderCommand::UpdateBufferData(PerObjectCB.get(), &Constants);
 }
@@ -530,4 +535,9 @@ void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
 {
 	FireBallLightData = LightData;
 	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
+}
+
+void FRenderer::SetLighting(const FLightingConstants& LightingConstants)
+{
+	RenderCommand::UpdateBufferData(LightingCB.get(), &LightingConstants, sizeof(FLightingConstants));
 }

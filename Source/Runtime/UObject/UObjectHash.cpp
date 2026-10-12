@@ -77,3 +77,13 @@ void UnhashObject(UObject* Obj, const UClass* Class)
 	if (TSet<UObject*>* Objects = GetClassToObjects().Find(Class))
 		Objects->Remove(Obj);
 }
+
+void GetDerivedClasses(const UClass* ClassToLookFor, TArray<UClass*>& Results, bool bRecursive)
+{
+	if(const TSet<UClass*>* Children = GetClassToChildren().Find(ClassToLookFor))
+		for (UClass* Child : *Children)
+		{
+			Results.Add(Child);
+			if (bRecursive) GetDerivedClasses(Child, Results, true);
+		}
+}

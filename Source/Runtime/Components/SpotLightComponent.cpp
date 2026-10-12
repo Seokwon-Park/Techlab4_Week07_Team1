@@ -21,7 +21,7 @@ namespace
 		const FVector& Up,
 		float HalfAngleDegrees,
 		float Range,
-		const FVector4& Color)
+		const FLinearColor& Color)
 	{
 		const float HalfAngle = FMath::DegreesToRadians(HalfAngleDegrees);
 		const float BaseRadius = std::tanf(HalfAngle) * Range;
@@ -31,6 +31,8 @@ namespace
 		// 밑면 원
 		FVector PreviousPoint;
 		FVector FirstPoint;
+
+		FVector4 ColorVec(Color);
 
 		for (int32 i = 0; i < CONE_SEGMENT_COUNT; ++i)
 		{
@@ -47,14 +49,14 @@ namespace
 			}
 			else
 			{
-				LineBatcher->AddLine(PreviousPoint, Point, Color);
+				LineBatcher->AddLine(PreviousPoint, Point, ColorVec);
 			}
 
 			PreviousPoint = Point;
 		}
 
 		// 마지막 점과 첫 점을 이어 원을 닫는다
-		LineBatcher->AddLine(PreviousPoint, FirstPoint, Color);
+		LineBatcher->AddLine(PreviousPoint, FirstPoint, ColorVec);
 
 		// 옆선
 		for (int32 i = 0; i < CONE_SIDE_LINE_COUNT; ++i)
@@ -66,7 +68,7 @@ namespace
 				Right * (std::cosf(Angle) * BaseRadius) +
 				Up * (std::sinf(Angle) * BaseRadius);
 
-			LineBatcher->AddLine(Apex, Point, Color);
+			LineBatcher->AddLine(Apex, Point, ColorVec);
 		}
 	}
 }
@@ -96,7 +98,7 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 	// 바깥 원뿔은 라이트 색 그대로, 안쪽은 구분되도록 흐리게
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeOuterAngle, SafeRadius, LightColor);
 
-	FVector4 InnerColor(LightColor.X * 0.5f, LightColor.Y * 0.5f, LightColor.Z * 0.5f, LightColor.W);
+	FColor InnerColor(LightColor.R * 0.5f, LightColor.G * 0.5f, LightColor.B * 0.5f, LightColor.A);
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
 }
