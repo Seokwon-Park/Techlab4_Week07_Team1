@@ -456,11 +456,24 @@ namespace
 
 					ImGui::TableNextRow();
 
-					// 4: UV Scroll Speed
 					ImGui::TableSetColumnIndex(0);
-					ImGui::Text("UV Scroll");
+					ImGui::Text("Shininess");
 
 					ImGui::TableSetColumnIndex(1);
+					ImGui::SetNextItemWidth(-1.0f);
+
+					float TempShininess =Effective ? Effective->Shininess : 32.0f;
+					if (ImGui::DragFloat("##Shininess", &TempShininess, 0.5f, 1.0f, 256.0f))
+					{
+						Override->Shininess = TempShininess;
+						Effective = Override;
+					}
+
+					// 4: UV Scroll Speed
+					ImGui::TableSetColumnIndex(2);
+					ImGui::Text("UV Scroll");
+
+					ImGui::TableSetColumnIndex(3);
 					ImGui::SetNextItemWidth(-1.0f);
 
 					FVector2 TempUVScrollSpeed = Effective ? Effective->UVScrollSpeed : FVector2();

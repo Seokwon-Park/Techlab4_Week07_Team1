@@ -40,7 +40,7 @@ public:
 	ESamplerState SamplerState = ESamplerState::LinearClamp;
 
 	FVector4 BaseColor = FVector4(1, 1, 1, 1);
-	float Shininess = 1.0f;
+	float Shininess = 32.0f;
 	FVector2 UVScrollSpeed = FVector2(0.0f, 0.0f);
 
 	bool bIsInstance = false;

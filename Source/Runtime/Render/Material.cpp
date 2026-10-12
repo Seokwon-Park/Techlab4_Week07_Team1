@@ -39,6 +39,7 @@ UMaterial* UMaterial::CreateInstance(const UMaterial* Source)
 	Instance->SamplerState = Source->SamplerState;
 	Instance->BaseColor = Source->BaseColor;
 	Instance->UVScrollSpeed = Source->UVScrollSpeed;
+	Instance->Shininess = Source->Shininess;
 
 	// ParamBuffer는 TUniquePtr라 복사할 수 없다.
 	// 원본이 갖고 있으면 같은 크기로 새로 만들어 준다. 내용은 매 프레임 갱신되므로 옮기지 않는다.
@@ -81,6 +82,7 @@ json UMaterial::SaveMaterial(const UMaterial* Material)
 	const UMaterial* Base = Material->GetBaseAsset();
 	Out["Base"] = Base ? Base->GetPath() : FString("DefaultMaterial");
 	Out["BaseColor"] = Material->BaseColor;
+	Out["Shininess"] = Material->Shininess;
 	Out["UVScrollSpeed"] = {
 		Material->UVScrollSpeed.X,
 		Material->UVScrollSpeed.Y
@@ -127,6 +129,11 @@ UMaterial* UMaterial::LoadMaterial(const json& In)
 	if (In.contains("BaseColor"))
 	{
 		In["BaseColor"].get_to(Instance->BaseColor);
+	}
+
+	if (In.contains("Shininess"))
+	{
+		In["Shininess"].get_to(Instance->Shininess);
 	}
 
 	if (In.contains("Textures"))
@@ -213,8 +220,9 @@ void UMaterial::Serialize(FStructuredArchive::FRecord Record)
 
 	FArchive& Ar = Record.GetUnderlyingArchive();
 
-	Record << SA_VALUE("BaseColor", BaseColor)
-		<< SA_VALUE("UVScrollSpeed", UVScrollSpeed);
+	Record 	<< SA_VALUE("BaseColor", BaseColor)
+			<< SA_VALUE("Shininess", Shininess)
+			<< SA_VALUE("UVScrollSpeed", UVScrollSpeed);
 
 	// enum은 이름 문자열로 (UE 텍스트 포맷도 enum을 이름으로 쓴다)
 	FString Sampler = SamplerState == ESamplerState::LinearWrap ? "LinearWrap" : "LinearClamp";
