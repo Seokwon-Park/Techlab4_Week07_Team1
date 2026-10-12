@@ -33,6 +33,12 @@ cbuffer LightConstants : register(b3)
     float3 LightPadding;
 };
 
+cbuffer ViewParams : register(b4)
+{
+    float3 CameraPos;
+    float  ViewPadding;
+};
+
 // LightModel
 #define GOURAUD 0
 #define LAMBERT 1

@@ -8,6 +8,7 @@ class FMultipleViewportsAdapter;
 
 class UWorld;
 
+
 struct FEditorSettings
 {
 	// 에디터 렌더 옵션과 Multiple Viewports 레이아웃의 영구 설정을 한곳에 담는다.
@@ -21,7 +22,7 @@ struct FEditorSettings
 	bool bEnableFXAA = true;
 	bool bDepthView = false;
 	bool bExponentialHeightFog = true;
-
+	
 	// Values
 	float CameraSpeed = 1.0f;
 	float MouseSensitivity = 1.0f;
@@ -41,6 +42,8 @@ struct FEditorSettings
     FQuat ViewRotation[4]{};
     bool bViewLocationSaved[4]{};
     bool bViewRotationSaved[4]{};
+	// 조명 모델
+	int32 LightingModel = 1;	// 0 Gouraud 1 Lambert 2 Blinn-Phong
 };
 
 

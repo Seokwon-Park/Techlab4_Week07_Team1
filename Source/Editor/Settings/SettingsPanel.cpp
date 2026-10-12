@@ -45,6 +45,8 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
 	ImGui::Checkbox("Exponential Height Fog", &Settings.bExponentialHeightFog);
+	const char* Models[] = { "Gouraud", "Lambert", "Blinn-Phong" };
+	ImGui::Combo("Lighting Model", &Settings.LightingModel, Models, IM_ARRAYSIZE(Models));
 	//////////////////////////////////////////////////////////
 
 	ImGui::Dummy(ImVec2(0.0f, SectionGap));
@@ -120,6 +122,7 @@ bool FSettingsPanel::SaveSettings() const
 	File << "DrawBatchLine=" << Settings.bDrawBatchLine << "\n";
 	File << "DrawPSGrid=" << Settings.bDrawPSGrid << "\n";
 	File << "EnableFXAA=" << Settings.bEnableFXAA << "\n";
+	File << "LightingModel" << Settings.LightingModel << "\n";
 	File << "\n";
 
 	File << "[Editor]\n";
@@ -241,6 +244,7 @@ bool FSettingsPanel::LoadSettings()
 				else if (Key == "DrawBatchLine") Settings.bDrawBatchLine = std::stoi(ValueStr);
 				else if (Key == "DrawPSGrid") Settings.bDrawPSGrid = std::stoi(ValueStr);
 				else if (Key == "EnableFXAA") Settings.bEnableFXAA = std::stoi(ValueStr);
+				else if (Key == "LightingModel") Settings.LightingModel == std::stoi(ValueStr);
 
 				else if (Key == "CameraMoveSpeed") Settings.CameraSpeed = std::stof(ValueStr);
 				else if (Key == "CameraRotateSensitivity") Settings.MouseSensitivity = std::stof(ValueStr);

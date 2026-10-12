@@ -9,6 +9,7 @@
 #include "Engine/PrimitiveSceneProxy.h"
 
 #include "RenderCommand.h"
+#include "RenderResourceManager.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -63,6 +64,7 @@ bool FRenderer::Init()
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
 	LightCB = RenderCommand::CreateConstantBuffer(sizeof(FLightConstants));
+	ViewParamsCB = RenderCommand::CreateConstantBuffer(sizeof(FVector4));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -455,10 +457,27 @@ void FRenderer::EndObjectConstants()
 	}
 }
 
+FShaderProgram* FRenderer::ResolveShader(UMaterial* Material)
+{
+	if (!StaticMeshShaders[0])
+	{
+		const char* Names[3] = { "_GOURAUD", "_LAMBERT", "_BLINNPHONG" };
+		for (int i = 0; i < 3; ++i)
+			StaticMeshShaders[i] = FRenderResourceManager::GetShaderProgram(
+				FString("Resources/Shader/StaticMeshShader.hlsl") + Names[i]);
+	}
+
+	for (FShaderProgram* S : StaticMeshShaders)
+		if (Material->Shader == S)
+			return StaticMeshShaders[(int)LightingModel]; // 현재 모드의 변형으로 교체
+	return Material->Shader;
+
+}
+
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
-	RenderCommand::BindShaderProgram(material->Shader);
+	RenderCommand::BindShaderProgram(ResolveShader(material));
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
@@ -530,4 +549,11 @@ void FRenderer::SetLights(const FLightConstants& LightData)
 {
 	LightConstantsData = LightData;
 	RenderCommand::UpdateBufferData(LightCB.get(), &LightConstantsData, sizeof(FLightConstants));
+}
+
+void FRenderer::SetViewParams(const FVector& CameraPosition)
+{
+	const FVector4 Data(CameraPosition.X, CameraPosition.Y, CameraPosition.Z, 0.0f);
+	RenderCommand::UpdateBufferData(ViewParamsCB.get(), &Data, sizeof(FVector4));
+	RenderCommand::BindConstantBuffer(4, ViewParamsCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 }

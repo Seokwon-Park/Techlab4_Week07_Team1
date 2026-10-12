@@ -7,6 +7,8 @@
 #include "RenderingInfo.h"
 #include "Occlusion/GPUOcclusion.h"
 #include "LightRenderData.h"
+#include "RenderEnums.h"
+#include "Material.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
 
@@ -75,6 +77,8 @@ public:
 	void EndObjectConstants();
 
 	void SetLights(const FLightConstants& LightConstants);
+	void SetLightingModel(ELightingModel Model) { LightingModel = Model; }
+	void SetViewParams(const FVector& CameraPosition);
 
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
@@ -115,4 +119,9 @@ private:
 
 	TUniquePtr<FConstantBuffer> LightCB;
 	FLightConstants LightConstantsData{};
+	ELightingModel LightingModel = ELightingModel::Lambert;
+	FShaderProgram* StaticMeshShaders[3] = {};
+	TUniquePtr<FConstantBuffer> ViewParamsCB;
+	FShaderProgram* ResolveShader(UMaterial* Material);
+
 };
