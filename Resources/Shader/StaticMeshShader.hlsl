@@ -50,7 +50,7 @@ cbuffer ViewParams : register(b4)
 #define SPOT 2
 #define RECT 3
 #define FIREBALL 4
-#define Sky 5
+#define SKY 5
 
 #ifndef LIGHTING_MODEL
 #define LIGHTING_MODEL LAMBERT      // Default
@@ -59,7 +59,6 @@ cbuffer ViewParams : register(b4)
 // 빛이 오는 방향과 감쇠를 구하는 함수
 float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
 {
-    if (type == SKY) return color * intensity;
 
     int type = (int)(light.DirectionType.w + 0.5f);
     float3 dir = light.DirectionType.xyz;           // 빛의 방향
@@ -71,6 +70,8 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     float3 V; // 표면에서 본 카메라쪽 방향
     float3 H; // Normalize(L+V)
     float atten = 1.0f;
+    
+    if (type == SKY) return color * intensity;
 
     if (type == DIRECTIONAL)
     {
