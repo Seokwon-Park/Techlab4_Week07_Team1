@@ -45,7 +45,9 @@ namespace
 			Optimized.Sections.Add(DefaultSection);
 		}
 
+		Optimized.BuildTangentSpace(); 
 		Optimized.OptimizeTriangleOrderForVertexCache();
+
 		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertex) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertex));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(Optimized.Indices.GetData(), static_cast<uint32>(Optimized.Indices.size()));
 		if (VB == nullptr || IB == nullptr) return nullptr;
@@ -442,6 +444,8 @@ FLODGenerateResult UAssetManager::GenerateStaticMeshLODs(UStaticMesh& Mesh, cons
 	{
 		FStaticMeshLODResource Resource;
 		Resource.Data = std::move(Data);
+
+		Resource.Data.BuildTangentSpace();
 		Resource.Data.OptimizeTriangleOrderForVertexCache();
 
 		Resource.VertexBuffer = RenderCommand::CreateStaticVertexBuffer(

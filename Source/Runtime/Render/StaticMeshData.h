@@ -72,4 +72,6 @@ struct FStaticMeshData
 	void OptimizeTriangleOrderForVertexCache();
 
 	void BuildTriangleBVH();
+
+	void BuildTangentSpace(); 
 };

@@ -187,9 +187,15 @@ PS_INPUT mainVS(VS_INPUT Input)
 
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
+    
     const float4 Albedo = g_txColor.Sample(g_Sample, Input.uv + UVOffset) * BaseColor;
     const float3 N = normalize(Input.normal);
+    const float3 T = normalize(Input.tangent.xyz);
+    const float3 B = cross(N, T) * Input.tangent.w; 
 
+    return float4(N * 0.5f + 0.5f, 1.0f);
+    
+    
     float3 Lighting = CalcAmbient();
 #if LIGHTING_MODEL_LAMBERT
     Lighting += CalcDirectional(N);

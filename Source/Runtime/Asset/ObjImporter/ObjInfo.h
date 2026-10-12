@@ -58,6 +58,7 @@ struct FObjInfo
 	TArray<FVector> Positions;
 	TArray<FVector2> UVs;
 	TArray<FVector> Normals;
+	TArray<FVector> Tangents; 
 	TArray<FObjFace> Faces;
 	TArray<FObjSection> Sections;
 	TArray<FString> Mtllibs; // .obj 폴더 기준
