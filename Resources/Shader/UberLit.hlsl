@@ -64,9 +64,12 @@ struct FRectLightInfo
 };
 
 
+// Renderer.h의 FViewConstants와 바이트 단위로 같아야 한다. VS와 PS 둘 다 b0에 바인딩된다.
 cbuffer Viewconstants : register(b0)
 {
     matrix VP;
+    float3 CameraWorldPos; // Specular의 V = normalize(CameraWorldPos - worldPos)
+    float ViewPadding;
 };
 
 cbuffer MaterialParams : register(b1)
@@ -74,7 +77,7 @@ cbuffer MaterialParams : register(b1)
     float4 BaseColor;
     float2 UVOffset;
     float bOpaque;
-    float MaterialPadding;
+    float Shininess; // Blinn-Phong 광택 지수 (Material.h FStaticMeshMaterialParams::Shininess)
 };
 
 cbuffer Worldconstants : register(b2)

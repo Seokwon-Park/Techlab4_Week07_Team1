@@ -25,6 +25,15 @@ inline void WritePerObjectConstants(uint8* Dest, const FMatrix& World, const FMa
 	std::memcpy(Dest, &Constants, sizeof(Constants));
 }
 
+// b0(Viewconstants)와 바이트 단위로 같아야 한다. View마다 RenderQueueSorting에서 한 번 올린다.
+struct alignas(16) FViewConstants
+{
+	FMatrix ViewProjection;
+	FVector CameraWorldPos;
+	float Padding = 0.0f;
+};
+static_assert(sizeof(FViewConstants) == 80, "UberLit.hlsl cbuffer Viewconstants 크기와 맞아야 한다");
+
 constexpr uint32 MaxPointLights = 4;
 constexpr uint32 MaxSpotLights = 4;
 constexpr uint32 MaxRectLights = 4;
@@ -149,7 +158,7 @@ public:
 	void RenderAll(FRenderQueue& InQueue, UCameraComponent* CameraComponent);
 
 	// Adapter가 계산한 ViewProjection을 직접 받아 View별 렌더 큐를 그린다.
-	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos);
 
 	// 큐를 정렬해 불투명 패킷만 그린다. 반투명은 RenderTranslucent 호출 전까지 보관한다.
 	void RenderOpaque(const FMatrix& ViewProjection);
@@ -166,7 +175,8 @@ public:
 	void RenderTranslucent(const FMatrix& ViewProjection);
 
 	// 큐를 Material, Opaque, Mesh에 따라 정렬한다
-	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	// CameraWorldPos는 ViewProjection과 함께 b0에 올라가 Specular 계산(V 벡터)에 쓰인다.
+	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos);
 
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.

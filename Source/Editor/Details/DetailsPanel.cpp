@@ -471,6 +471,26 @@ namespace
 
 					ImGui::TableNextRow();
 
+					// Shininess (Blinn-Phong 광택 지수)
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Text("Shininess");
+
+					ImGui::TableSetColumnIndex(1);
+					ImGui::SetNextItemWidth(-1.0f);
+
+					float TempShininess = Effective ? Effective->Shininess : 32.0f;
+					if (ImGui::DragFloat("##Shininess", &TempShininess, 0.5f, 1.0f, 1024.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp))
+					{
+						Override = EnsureMaterialOverride(MeshComponent, Slot, Effective, Override);
+						if (Override)
+						{
+							Override->Shininess = TempShininess;
+							Effective = Override;
+						}
+					}
+
+					ImGui::TableNextRow();
+
 					// 5: Sampler State
 					ImGui::TableSetColumnIndex(0);
 					ImGui::Text("Sampler");
