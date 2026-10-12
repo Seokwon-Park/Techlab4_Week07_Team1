@@ -65,10 +65,24 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     float3 color = light.ColorIntensity.rgb;
     float intensity = light.ColorIntensity.w;
     float3 L; // 표면에서 본 빛 쪽 방향
+    float3 V; // 표면에서 본 카메라쪽 방향
+    float3 H; // Normalize(L+V)
     float atten = 1.0f;
+    float shininess = 1.0f;
+
+    float3 toLight = samplePos - worldPos;
+    float distLight = length(toLight);
+    L = toLight / max(distLight, 0.0001f);
+
+    float3 toCam = CameraPos - worldPos;
+    float distCam = length(toCam);
+    V = toCam / max(distCam, 0.0001f);
+
+    H = normalize(L + V);
+
 
     #if LIGHTING_MODEL == BLINNPHONG
-        // specular = ;
+        specular = pow(dot(N, H), shininess);
     #endif
 
     if (type == DIRECTIONAL)
@@ -92,10 +106,6 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
             float y = clamp(dot(d, up), -light.Params.y, light.Params.y);   // 반높이
             samplePos = lightPos + right * x + up * y;
         }
-
-        float3 toLight = samplePos - worldPos;
-        float dist = length(toLight);
-        L = toLight / max(dist, 0.0001f);
 
         // 마지막 Light에 곱해질 예정 (반경을 기준으로 멀리 있을수록 0)
         atten = pow(saturate(1.0f - dist / radius), max(light.Params.x, 0.001f));   // 거리 감쇠
@@ -145,7 +155,7 @@ PS_INPUT mainVS(VS_INPUT input)
     output.worldPos = mul(float4(input.p, 1.0f), World).xyz;
     output.position = mul(mul(float4(input.p, 1.0f), World), VP);
     
-    // w=0으로 이동 성분을 빼고 월드 공간으로 보낸다. 비균등 스케일이면 역전치가 필요하다.
+    // 월드 공간으로 보낸다. 비균등 스케일이면 역전치가 필요함.
     output.normal = mul(float4(input.n, 0.0f), World).xyz;
     output.color = input.c;
     output.uv = input.t;
