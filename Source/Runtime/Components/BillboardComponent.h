@@ -10,6 +10,7 @@ struct FSubUVConstants
 	float AtlasColSize;
 	//float Padding = 0.0f;
 	float Alpha;
+	FVector4 Tint = FVector4(1, 1, 1, 1);	// default 흰색
 };
 
 class UBillboardComponent : public UPrimitiveComponent
@@ -34,6 +35,8 @@ public:
 	virtual UMaterial* GetMaterial(int32 SlotIndex) const override { return SlotIndex == 0 ? Material : nullptr; }
 	virtual void SetMaterial(int32 SlotIndex, UMaterial* InMaterial) override { if (SlotIndex == 0) Material = InMaterial; }
 
+	void SetTintSource(const ULightComponentBase* InSource) { TintSource = InSource; }
+
 	virtual const FStaticMeshData* GetMeshData() const override { return QuadMesh ? &QuadMesh->GetMeshData() : nullptr; }
 
 	void GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) const;
@@ -46,10 +49,16 @@ public:
 
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+
+	bool IsEditorIcon() { return bEditorIcon; }
+	void SetEditorIcon(bool IsEditorIcon) { bEditorIcon = IsEditorIcon; }
+
 protected:
 	UMaterial* Material = nullptr;
 	UStaticMesh* QuadMesh = nullptr;
 	FSubUVConstants IconParams{ 0.0f, 1.0f, 1.0f, 1.0f };	// CurrentFrame, RowSize, ColSize, Alpha
 private:
+	const ULightComponentBase* TintSource = nullptr;
+	bool bEditorIcon = false;
 
 };

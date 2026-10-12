@@ -10,7 +10,9 @@ void ALightActorBase::SetupLightRoot(ULightComponent* LightComponent, const FStr
     SetRootComponent(LightComponent);
 
     BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
+    BillboardComponent->SetEditorIcon(true);
     BillboardComponent->SetupAttachment(LightComponent);
+    BillboardComponent->SetTintSource(LightComponent);
 
     UMaterial* Base = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");
     UTexture2D* Icon = UAssetManager::Get().LoadTexture(IconPath);

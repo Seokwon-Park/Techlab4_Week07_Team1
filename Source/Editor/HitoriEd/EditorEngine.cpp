@@ -420,7 +420,7 @@ void UEditorEngine::RenderMultipleViewports()
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_BuildRenderQueue);
-			MultipleViewportsAdapter.BuildRenderQueue(ViewIndex, RenderQueue);
+			MultipleViewportsAdapter.BuildRenderQueue(ViewIndex, RenderQueue, IconQueue);
 		}
 
 		RenderFrame(
@@ -450,7 +450,7 @@ void UEditorEngine::RenderMultipleViewports()
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_BuildRenderQueue);
-			MultipleViewportsAdapter.BuildRenderQueue(PIEViewIndex, RenderQueue);
+			MultipleViewportsAdapter.BuildRenderQueue(PIEViewIndex, RenderQueue, IconQueue);
 		}
 
 		RenderFrame(

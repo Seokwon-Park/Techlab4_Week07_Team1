@@ -10,6 +10,7 @@ AExponentialHeightFogActor::AExponentialHeightFogActor()
 	// Fog 아이콘 텍스처가 준비되면 Property 창에서 머티리얼 슬롯에 끼우면 된다.
 
 	BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
+	BillboardComponent->SetEditorIcon(true);
 	BillboardComponent->SetupAttachment(ExponentialHeightFogComponent);
 	BillboardComponent->SetHiddenInDetails(true);
 }
