@@ -11,6 +11,8 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/RectLightComponent.h"
+#include "Components/SkyLightComponent.h"
+
 #include "Components/RotatingMovementComponent.h"
 #include "Components/ProjectileMovementComponent.h"
 #include "Components/FireBallComponent.h"
@@ -655,6 +657,21 @@ namespace
 			}
 			break;
 		}
+		case EPropertyType::Color32:
+		{
+			FColor* Value = static_cast<FColor*>(ValuePtr);
+			FVector4 Tmp = Value->ToVector4();
+			if (ImGui::ColorEdit4(Label.c_str(), &Tmp.X))
+			{
+				// 0~1 -> 0~255
+				*Value = FColor(
+					(uint8)(Tmp.X * 255.0f + 0.5f), (uint8)(Tmp.Y * 255.0f + 0.5f),
+					(uint8)(Tmp.Z * 255.0f + 0.5f), (uint8)(Tmp.W * 255.0f + 0.5f)
+				);
+				bChanged = true;
+			}
+			break;
+		}
 		default:
 			ImGui::TextDisabled("(Unsupported)");
 			break;
@@ -754,6 +771,12 @@ namespace
 			if (ImGui::MenuItem("ParticleSubUV Component"))
 			{
 				OutSelectedComponent = Actor->AddComponent(UParticleSubUVComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("SkyLight Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(USkyLightComponent::StaticClass(), FString(ComponentNameInputBuf));
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
 			}

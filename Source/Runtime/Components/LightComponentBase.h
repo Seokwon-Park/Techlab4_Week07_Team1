@@ -3,14 +3,14 @@
 #include "SceneComponent.h"
 #include "Math/Color.h"
 
-enum class ELightType { Directional, Point, Spot, Rect, Fireball };
+enum class ELightType { Directional, Point, Spot, Rect, Fireball, Sky };
 
 class ULightComponentBase : public USceneComponent
 {
 	DECLARE_CLASS(ULightComponentBase, USceneComponent)
 	REFLECT_START(ULightComponentBase)
 		PROPERTY(Intensity)
-		// PROPERTY_TYPE(LightColor, Color)
+		PROPERTY_TYPE(LightColor, Color32)
 		PROPERTY(bVisible)
 	REFLECT_END()
 

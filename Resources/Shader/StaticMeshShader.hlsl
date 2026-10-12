@@ -14,7 +14,7 @@ cbuffer MaterialParams : register(b1)
     float4 BaseColor;
     float2 UVOffset;
     float bOpaque;
-    float Padding;
+    float Shininess;
 };
 
 struct LightRenderData
@@ -68,7 +68,6 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     float3 V; // 표면에서 본 카메라쪽 방향
     float3 H; // Normalize(L+V)
     float atten = 1.0f;
-    float shininess = 1.0f;
 
     if (type == DIRECTIONAL)
     {
@@ -117,12 +116,12 @@ float3 EvaluateLight(LightRenderData light, float3 N, float3 worldPos)
     
     #if LIGHTING_MODEL == BLINNPHONG
         
-        V = normalize(samplePos - worldPos); 
+        V = normalize(CameraPos - worldPos); 
         H = normalize(L + V);
-        float specular = (NL > 0.0f)? pow(saturate(dot(N, H)), shininess) : 0.0f;
+        float specular = (NL > 0.0f)? pow(saturate(dot(N, H)), Shininess) : 0.0f;
         
         // specular
-        result += color * spec;
+        result += color * specular;
     #endif
 
     return result * atten * intensity;

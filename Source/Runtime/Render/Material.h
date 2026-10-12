@@ -20,7 +20,7 @@ struct FStaticMeshMaterialParams
 	FVector4 BaseColor;
 	FVector2 UVOffset;
 	float bOpaque; // 1이면 PS가 알파를 1로 출력한다
-	float Padding;
+	float Shininess;
 };
 
 class UMaterial : public UMaterialInterface
@@ -40,6 +40,7 @@ public:
 	ESamplerState SamplerState = ESamplerState::LinearClamp;
 
 	FVector4 BaseColor = FVector4(1, 1, 1, 1);
+	float Shininess = 1.0f;
 	FVector2 UVScrollSpeed = FVector2(0.0f, 0.0f);
 
 	bool bIsInstance = false;
