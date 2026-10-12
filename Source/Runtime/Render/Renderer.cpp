@@ -9,6 +9,7 @@
 #include "Engine/PrimitiveSceneProxy.h"
 
 #include "RenderCommand.h"
+#include "RenderResourceManager.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -462,7 +463,14 @@ void FRenderer::EndObjectConstants()
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
-	RenderCommand::BindShaderProgram(material->Shader);
+	// UberLit 머티리얼이면 현재 뷰모드의 변형으로 바꿔 끼운다. 다른 셰이더(Text, Particle 등)는 그대로 둔다.
+	FShaderProgram* Program = material->Shader;
+	if (FRenderResourceManager::IsUberLitProgram(Program))
+	{
+		if (FShaderProgram* Variant = FRenderResourceManager::GetUberLitProgram(CurrentViewMode))
+			Program = Variant;
+	}
+	RenderCommand::BindShaderProgram(Program);
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
@@ -535,6 +543,15 @@ void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
 {
 	FireBallLightData = LightData;
 	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
+}
+
+void FRenderer::SetViewMode(EViewMode InViewMode)
+{
+	if (CurrentViewMode == InViewMode)
+		return;
+	CurrentViewMode = InViewMode;
+	// 같은 머티리얼이라도 셰이더가 바뀌므로 다음 드로우에서 다시 바인딩하게 한다.
+	LastMaterial = nullptr;
 }
 
 void FRenderer::SetLighting(const FLightingConstants& LightingConstants)

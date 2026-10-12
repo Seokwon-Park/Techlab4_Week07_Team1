@@ -1,7 +1,10 @@
 #pragma pack_matrix(row_major)
 
-// 컴파일 매크로를 넘기기 전까지 여기서 조명 모델 하나를 켠다.
-#ifndef LIGHTING_MODEL_LAMBERT
+// 조명 모델은 C++(FRenderResourceManager::LoadUberLit)이 매크로로 하나만 넘긴다.
+// 아무 매크로 없이 컴파일될 때(기존 머티리얼이 쓰는 기본 키)만 Lambert를 켠다.
+#if !defined(LIGHTING_MODEL_UNLIT) && !defined(LIGHTING_MODEL_GOURAUD) && \
+    !defined(LIGHTING_MODEL_LAMBERT) && !defined(LIGHTING_MODEL_PHONG) && \
+    !defined(WORLD_NORMAL)
 #define LIGHTING_MODEL_LAMBERT 1
 #endif
 
@@ -190,6 +193,13 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
     const float4 Albedo = g_txColor.Sample(g_Sample, Input.uv + UVOffset) * BaseColor;
     const float3 N = normalize(Input.normal);
 
+    // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
+    const float Alpha = bOpaque > 0.5f ? 1.0f : Albedo.a;
+
+#if LIGHTING_MODEL_UNLIT
+    // 조명 없이 표면색 그대로
+    return float4(Albedo.rgb, Alpha);
+#else
     float3 Lighting = CalcAmbient();
 #if LIGHTING_MODEL_LAMBERT
     Lighting += CalcDirectional(N);
@@ -204,7 +214,6 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
     }
 #endif
 
-    // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
-    const float Alpha = bOpaque > 0.5f ? 1.0f : Albedo.a;
     return float4(Albedo.rgb * Lighting, Alpha);
+#endif
 }

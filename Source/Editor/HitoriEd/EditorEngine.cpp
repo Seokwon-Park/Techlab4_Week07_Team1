@@ -556,6 +556,8 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
 	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
 		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
+	// View별 조명 뷰모드. 불투명·반투명 모두 이 값으로 UberLit 변형을 고른다.
+	Renderer->SetViewMode(MultipleViewportsAdapter.GetViewMode(ViewIndex));
 
 	// 렌더 루프 — 반드시 RenderAll보다 먼저
 	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);

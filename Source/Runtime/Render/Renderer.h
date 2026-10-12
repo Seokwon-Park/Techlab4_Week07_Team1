@@ -5,6 +5,7 @@
 #include "Text/Font.h"
 
 #include "RenderingInfo.h"
+#include "ViewMode.h"
 #include "Occlusion/GPUOcclusion.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
@@ -178,6 +179,10 @@ public:
 	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
 	void SetLighting(const FLightingConstants& LightingConstants);
 
+	// 이후 그리는 UberLit 머티리얼이 쓸 조명 모델. View마다 RenderOpaque 전에 설정한다.
+	void SetViewMode(EViewMode InViewMode);
+	EViewMode GetViewMode() const { return CurrentViewMode; }
+
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;
@@ -220,4 +225,6 @@ private:
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;
+
+	EViewMode CurrentViewMode = EViewMode::Lit_Lambert;
 };
