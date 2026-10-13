@@ -224,8 +224,8 @@ private:
 
 private:
 	// private
-	TUniquePtr<FConstantBuffer> mTileLightingCB{};
-	uint32 mLightDebugMode{};
+	TUniquePtr<FConstantBuffer> TileLightingCB{};
+	uint32 LightDebugMode{};
 
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;
@@ -259,15 +259,15 @@ private:
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;
-	TUniquePtr<FConstantBuffer> mLightCullingCB{};
+	TUniquePtr<FConstantBuffer> LightCullingCB{};
 
-	TUniquePtr<FStructuredBuffer> mTileIndexBuffer{};
-	TUniquePtr<FStructuredBuffer> mPointLightBuffer{};
-	TUniquePtr<FStructuredBuffer> mSpotLightBuffer{};
+	TUniquePtr<FStructuredBuffer> TileIndexBuffer{};
+	TUniquePtr<FStructuredBuffer> PointLightBuffer{};
+	TUniquePtr<FStructuredBuffer> SpotLightBuffer{};
 
-	FComputeShader* mLightCullingCS{};
+	FComputeShader* LightCullingCS{};
 
-	uint32 mNumPointLightsThisFrame{};
+	uint32 NumPointLightsThisFrame{};
 
 	EViewMode CurrentViewMode = EViewMode::Lit_Lambert;
 };
