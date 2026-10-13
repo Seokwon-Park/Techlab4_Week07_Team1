@@ -16,6 +16,7 @@ cbuffer subuv : register(b1)
     float AtlasRowSize;
     float AtlasColSize;
     float ParticleAlpha;
+    float4 Tint;
 };
 
 Texture2D AtlasTexture : register(t0);
@@ -56,6 +57,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
 
     float4 color = AtlasTexture.Sample(AtlasSampler, cellUV);
     color.a *= ParticleAlpha;
+    color.rgb *= Tint.rgb;
     
     return color;
 }

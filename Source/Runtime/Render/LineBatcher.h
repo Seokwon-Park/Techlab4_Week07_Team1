@@ -4,6 +4,8 @@
 #include "StaticMeshData.h"
 #include "PipelineState.h"
 
+#include "Math/Color.h"
+
 class FRenderer;
 class UWorld;
 

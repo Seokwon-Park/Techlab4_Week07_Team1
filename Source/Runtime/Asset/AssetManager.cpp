@@ -55,7 +55,7 @@ namespace
 			Optimized.Sections.Add(DefaultSection);
 		}
 
-		Optimized.BuildTangentSpace(); 
+		Optimized.BuildTangentSpace();
 		Optimized.OptimizeTriangleOrderForVertexCache();
 
 		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertex) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertex));
@@ -136,6 +136,7 @@ void UAssetManager::Init(const FAssetLoadProgress& OnProgress)
 	Get().ScanAssets("Assets", OnProgress);
 	Get().CreateDefaultMeshes();
 	Get().CreateParticleMaterial();
+	Get().CreateEditorArrowMaterial();
 }
 
 void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgress& OnProgress)
@@ -318,6 +319,14 @@ void UAssetManager::CreateParticleMaterial()
 	ParticleMat->ParamLayout = EMaterialParamLayout::ParticleSubUV;
 	ParticleMat->ParamBuffer = RenderCommand::CreateConstantBuffer(256);
 	RegisterAsset("SubUVMaterial", ParticleMat);
+}
+
+void UAssetManager::CreateEditorArrowMaterial() {
+	UMaterial* BaseMaterial{ GetAssetByPath<UMaterial>("DefaultMaterial") };
+	UMaterial* ArrowMaterial{ UMaterial::CreateInstance(BaseMaterial) };
+	ArrowMaterial->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/EditorArrowShader.hlsl");
+	ArrowMaterial->BaseColor = FVector4{ 1.0f, 1.0f, 1.0f, 1.0f };
+	RegisterAsset("EditorArrowMaterial", ArrowMaterial);
 }
 
 void UAssetManager::Shutdown()

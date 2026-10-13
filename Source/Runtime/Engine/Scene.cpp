@@ -3,6 +3,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/SkyLightComponent.h"
 
 void FScene::AddPrimitive(UPrimitiveComponent* Component)
 {
@@ -127,6 +128,12 @@ void FScene::UpdateLights(FRenderer* Renderer)
 			Constants.Directional.Direction = Transform.GetForward();
 			Constants.Directional.Color = FVector(Color.R, Color.G, Color.B);
 			Constants.Directional.Intensity = Directional->GetIntensity();
+		}
+		else if (USkyLightComponent* Sky = Cast<USkyLightComponent>(Light))
+		{
+			const FLinearColor Color(Sky->GetLightColor());
+			Constants.Ambient.Color = FVector(Color.R, Color.G, Color.B);
+			Constants.Ambient.Intensity = Sky->GetIntensity();
 		}
 		else if (USpotLightComponent* Spot = Cast<USpotLightComponent>(Light))
 		{
@@ -296,85 +303,4 @@ void FScene::MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy)
 	if (!Proxy || Proxy->bRenderStateQueued) return;
 	Proxy->bRenderStateQueued = true;
 	RenderStateDirtyProxies.Add(Proxy);
-}
-
-
-void FScene::UpdateFireBallLight(FRenderer* Renderer)
-{
-	if (!Renderer)
-		return;
-
-	FFireBallLight Data{};
-	FFireBallLightConstants Constants{};
-
-	Constants.LightCount = 0;
-
-	// 기본값: 활성 FireBall 없음
-	Data.PositionRadius = FVector4(0, 0, 0, 0);
-	Data.ColorIntensity = FVector4(0, 0, 0, 0);
-	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
-
-	for (UFireBallComponent* FireBall : FireBallComponents)
-	{
-		if (Constants.LightCount >= MaxFireBalls)
-		{
-			break; // 최대 FireBall 수를 초과하면 루프 종료
-		}
-
-		if (!FireBall)
-			continue;
-
-		const FVector Position = FireBall->GetWorldLocation();
-		const FVector4 Color = FireBall->GetLightColor();
-
-		Data.PositionRadius = FVector4(
-			Position.X,
-			Position.Y,
-			Position.Z,
-			std::max<float>(FireBall->GetRadius(), 0.001f)
-		);
-
-		Data.ColorIntensity = FVector4(
-			Color.X,
-			Color.Y,
-			Color.Z,
-			std::max<float>(FireBall->GetIntensity(), 0.0f)
-		);
-
-		Data.FalloffEnabled = FVector4(
-			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
-			1.0f,
-			0.0f,
-			0.0f
-		);
-
-		Constants.Light[Constants.LightCount] = Data;
-		Constants.LightCount++;
-	}
-
-	Renderer->SetFireBallLight(Constants);
-}
-
-void FScene::RegisterFireBall(UFireBallComponent* FireBall)
-{
-	if (!FireBall)
-		return;
-
-	for (UFireBallComponent* Existing : FireBallComponents)
-	{
-		if (Existing == FireBall)
-			return;
-	}
-	FireBallComponents.Add(FireBall);
-}
-void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
-{
-	for (uint32 i = 0; i < FireBallComponents.Num(); ++i)
-	{
-		if (FireBallComponents[i] == FireBall)
-		{
-			FireBallComponents.RemoveAt(i, 1);
-			return;
-		}
-	}
 }

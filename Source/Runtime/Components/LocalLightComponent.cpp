@@ -1,11 +1,5 @@
 #include "EnginePCH.h"
 #include "LocalLightComponent.h"
 
-ULocalLightComponent::ULocalLightComponent()
-{
-
-}
-
-ULocalLightComponent::~ULocalLightComponent()
-{
-}
+ULocalLightComponent::ULocalLightComponent() : AttenuationRadius(5.0f) {}
+ULocalLightComponent::~ULocalLightComponent() {}

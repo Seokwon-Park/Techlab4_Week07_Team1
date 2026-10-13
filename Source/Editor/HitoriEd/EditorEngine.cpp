@@ -18,7 +18,7 @@
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
-#include "GameFramework/Actor/LightActor.h"
+#include "GameFramework/Actor/LightActorBase.h"
 
 #include "Asset/AssetManager.h"
 #include "Render/RenderResourceManager.h"
@@ -414,14 +414,14 @@ void UEditorEngine::RenderMultipleViewports()
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
 			// FireBall 라이트 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
+			// ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateLights(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_BuildRenderQueue);
-			MultipleViewportsAdapter.BuildRenderQueue(ViewIndex, RenderQueue);
+			MultipleViewportsAdapter.BuildRenderQueue(ViewIndex, RenderQueue, IconQueue, ArrowQueue);
 		}
 
 		RenderFrame(
@@ -431,7 +431,7 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineViewProjection(ViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraLocation(ViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraForward(ViewIndex),
-			RenderQueue);
+			RenderQueue, IconQueue, ArrowQueue);
 
 
 
@@ -445,14 +445,14 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
+			//ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateLights(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_BuildRenderQueue);
-			MultipleViewportsAdapter.BuildRenderQueue(PIEViewIndex, RenderQueue);
+			MultipleViewportsAdapter.BuildRenderQueue(PIEViewIndex, RenderQueue, IconQueue, ArrowQueue);
 		}
 
 		RenderFrame(
@@ -462,7 +462,7 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineViewProjection(PIEViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraLocation(PIEViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraForward(PIEViewIndex),
-			RenderQueue);
+			RenderQueue, IconQueue, ArrowQueue);
 		CopyPIEWindowToBackbuffer();
 	}
 
@@ -556,6 +556,8 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
 	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
 		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
+	// View별 조명 뷰모드. 불투명·반투명 모두 이 값으로 UberLit 변형을 고른다.
+	Renderer->SetViewMode(MultipleViewportsAdapter.GetViewMode(ViewIndex));
 
 	// 렌더 루프 — 반드시 RenderAll보다 먼저
 	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
@@ -567,7 +569,7 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
-		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
+		Renderer->RenderQueueSorting(RenderQueue, ViewProjection, ViewCameraLocation);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
@@ -613,7 +615,7 @@ void UEditorEngine::RenderFogPass(const int32 ViewIndex, UWorld& ViewWorld, cons
 	RenderCommand::EndRenderPass(PassInfo);
 }
 
-void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue, FRenderQueue& IconQueue, FRenderQueue& ArrowQueue)
 {
 	// 실행 중인 PIE View에는 Grid·Gizmo·Outline 같은 에디터 표시를 그리지 않는다.
 	// 별도 PIE 창은 편집 입력이 없으므로 일시정지 중에도 게임 화면만 보인다.
@@ -644,9 +646,9 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
 		if (Gizmo->GetTarget())
 		{
-			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
+			if (ALightActorBase* LightActor = Cast<ALightActorBase>(Gizmo->GetTarget()->GetOwner()))
 			{
-				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
+				LightActor->GetLightComponent()->DrawDebug(LineBatcher.get());
 			}
 		}
 
@@ -678,6 +680,22 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 				PassInfo.ViewportSetting
 			);
 		}
+	}
+
+	// Editor Icon (안개, Light Actor) + 빛 방향 Arrow
+	if (bShowEditorOverlay)
+	{
+		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// 아이콘 먼저 그리기 (반투명)
+		Renderer->RenderQueueSorting(IconQueue, ViewProjection, ViewCameraLocation);
+		Renderer->RenderTranslucent(ViewProjection);
+		
+		// 화살표 그리기 (불투명)
+		Renderer->RenderQueueSorting(ArrowQueue, ViewProjection, ViewCameraLocation);
+		Renderer->RenderOpaque(ViewProjection);
+		Renderer->RenderTranslucent(ViewProjection);	// 패킷 뒷정리
 	}
 
 	// TextRenderComponent 렌더링
@@ -853,15 +871,14 @@ void UEditorEngine::UpdateGizmoAndPicking()
 }
 
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
-void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue, FRenderQueue& IconQueue, FRenderQueue& ArrowQueue)
 {
-	// 1. 불투명 Pass
+
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 	if (SettingsPanel->GetSettings().bDepthView)
 	{
 		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
-
 
 	}
 	else
@@ -876,11 +893,8 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 			RenderFXAAPass(ViewIndex, ViewRenderingInfo);
 	}
 
-
-
 	// 4. 오버레이 Pass
-	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
-
+	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue, IconQueue, ArrowQueue);
 
 }
 

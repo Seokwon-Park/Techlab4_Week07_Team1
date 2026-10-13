@@ -2,26 +2,12 @@
 #include "FireBallComponent.h"
 #include "Engine/World.h"
 
-void UFireBallComponent::InitializeComponent()
+UFireBallComponent::UFireBallComponent()
 {
-    Super::InitializeComponent();
-
-    if (AActor* Owner = GetOwner())
-    {
-        if (UWorld* World = Owner->GetWorld())
-        {
-            World->GetScene().RegisterFireBall(this);
-        }
-    }
+    SetIntensity(1.8f);
+    SetLightColor(FColor(255, 0, 204, 255));
+    SetAttenuationRadius(6.5f);
+    SetFalloff(3.0f);
 }
 
-UFireBallComponent::~UFireBallComponent()
-{
-    if (AActor* Owner = GetOwner())
-    {
-        if (UWorld* World = Owner->GetWorld())
-        {
-            World->GetScene().UnregisterFireBall(this);
-        }
-    }
-}
+UFireBallComponent::~UFireBallComponent() {}

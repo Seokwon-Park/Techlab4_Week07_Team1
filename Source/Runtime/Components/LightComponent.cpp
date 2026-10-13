@@ -4,14 +4,9 @@
 #include "Engine/Scene.h"
 #include "Engine/World.h"
 
-ULightComponent::ULightComponent()
-{
-
-}
-
-ULightComponent::~ULightComponent()
-{
-}
+ULightComponent::ULightComponent() {}
+ULightComponent::~ULightComponent() {}
+void ULightComponent::DrawDebug(FLineBatcher* LineBatcher) const {}
 
 void ULightComponent::CreateRenderState()
 {

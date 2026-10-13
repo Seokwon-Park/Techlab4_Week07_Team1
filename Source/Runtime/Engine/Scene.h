@@ -3,7 +3,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
-#include "Components/FireBallComponent.h"
 #include "Components/LightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
@@ -16,6 +15,11 @@ struct FExponentialHeightFogSceneInfo
 	FFogInfo FogInfo;
 };
 
+struct FLightSceneInfo
+{
+	uint32 Id;
+	
+};
 
 class FScene
 {
@@ -42,10 +46,6 @@ public:
 	void MarkDirty(FPrimitiveSceneProxy* Proxy);
 	void MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy);
 
-	void UpdateFireBallLight(FRenderer* Renderer);
-	void RegisterFireBall(UFireBallComponent* FireBall);
-	void UnregisterFireBall(UFireBallComponent* FireBall);
-
 	TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
 	TArray<FPrimitiveSceneProxy*> RenderStateDirtyProxies;
@@ -64,7 +64,7 @@ public:
 	};
 	bool bElementListChanged = false;
 	
-	TArray<UFireBallComponent*> FireBallComponents;
+	// TArray<UFireBallComponent*> FireBallComponents;
 
 	TArray<ULightComponent*> LightComponents;
 
