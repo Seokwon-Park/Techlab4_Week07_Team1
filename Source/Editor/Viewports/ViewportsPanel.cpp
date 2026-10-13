@@ -227,52 +227,100 @@ void FViewportsPanel::OnRender()
 		bDraggingHorizontalSplitter = false;
 	}
 
+	// 뷰포트별 반응형 툴바: 현재 줄에 공간이 없으면 다음 줄로 내려 배치한다.
+	float ToolbarExtraHeight[4]{};
+
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
 	{
 		if (!Slots[ViewIndex].bActive)
 			continue;
-		ImGui::SetCursorScreenPos({
-			ContentOrigin.x + Slots[ViewIndex].Rect.X + 8.0f,
-			ContentOrigin.y + Slots[ViewIndex].Rect.Y + 8.0f});
+
+		const FViewSlot& Slot = Slots[ViewIndex];
+
+		const float Left = ContentOrigin.x + Slot.Rect.X + 8.0f;
+		const float Top = ContentOrigin.y + Slot.Rect.Y + 8.0f;
+		const float Width = std::max(1.0f, Slot.Rect.Width - 16.0f);
+
+		ImVec2 Cursor{ Left, Top };
+
+		auto PlaceToolbarItem = [&](float PreferredWidth)
+		{
+			const float ItemWidth = std::min(PreferredWidth, Width);
+
+			if (Cursor.x > Left && Cursor.x + ItemWidth > Left + Width)
+			{
+				Cursor.x = Left;
+				Cursor.y += ImGui::GetFrameHeightWithSpacing();
+			}
+
+			ImGui::SetCursorScreenPos(Cursor);
+			Cursor.x += ItemWidth + ImGui::GetStyle().ItemSpacing.x;
+
+			return ItemWidth;
+		};
+
+		auto ComboWidth = [](const char* LongestLabel)
+		{
+			return ImGui::CalcTextSize(LongestLabel).x + ImGui::GetFrameHeight() + ImGui::GetStyle().FramePadding.x * 2.0f;
+		};
+
+		auto SmallButtonWidth = [](const char* Label)
+		{
+			return ImGui::CalcTextSize(Label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+		};
+
 		ImGui::PushID(100 + ViewIndex);
+
+		// Camera Preset
 		int SelectedPreset = static_cast<int>(CurrentCameraPresets[ViewIndex]);
-		ImGui::SetNextItemWidth(120.0f);
+		ImGui::SetNextItemWidth(PlaceToolbarItem(ComboWidth("Ortho (Current)")));
 		if (ImGui::Combo("##CameraPreset", &SelectedPreset, CameraPresetLabels, IM_ARRAYSIZE(CameraPresetLabels)))
 		{
 			PendingCameraPresetViewIndex = ViewIndex;
 			PendingCameraPreset = static_cast<EMultipleViewportsCameraPreset>(SelectedPreset);
 		}
-		ImGui::SameLine();
-		// 레이아웃과 독립적으로 각 View의 장면 Fill Mode를 편집한다.
-        if (ViewportAdapter)
-        {
-            int Mode = ViewportAdapter->IsViewWireframe(ViewIndex) ? 1 : 0;
-            const char* Labels[] = {"Solid", "Wireframe"};
-            ImGui::SetNextItemWidth(100.0f);
-            if (ImGui::Combo("##FillMode", &Mode, Labels, 2))
-                ViewportAdapter->SetViewWireframe(ViewIndex, Mode == 1);
-            ImGui::SameLine();
 
-            // ㅣ 뷰모드. 고른 값은 렌더 직전에 Renderer로 넘어가 UberLit 변형을 고른다.
-            const EViewMode CurrentViewMode = ViewportAdapter->GetViewMode(ViewIndex);
-            ImGui::SetNextItemWidth(120.0f);
-            if (ImGui::BeginCombo("##ViewMode", GetViewModeName(CurrentViewMode)))
-            {
-                for (int32 ModeIndex = 0; ModeIndex < static_cast<int32>(EViewMode::Count); ++ModeIndex)
-                {
-                    const EViewMode Candidate = static_cast<EViewMode>(ModeIndex);
-                    const bool bSelected = Candidate == CurrentViewMode;
-                    if (ImGui::Selectable(GetViewModeName(Candidate), bSelected))
-                        ViewportAdapter->SetViewMode(ViewIndex, Candidate);
-                    if (bSelected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-            ImGui::SameLine();
-        }
-        if (CurrentLayoutMode == ELayoutMode::QuadSplit)
+		if (ViewportAdapter)
 		{
+			// 레이아웃과 독립적으로 각 View의 장면 Fill Mode를 편집한다.
+			int Mode = ViewportAdapter->IsViewWireframe(ViewIndex) ? 1 : 0;
+			const char* Labels[] = { "Solid", "Wireframe" };
+			ImGui::SetNextItemWidth(PlaceToolbarItem(ComboWidth("Wireframe")));
+			if (ImGui::Combo("##FillMode", &Mode, Labels, 2))
+				ViewportAdapter->SetViewWireframe(ViewIndex, Mode == 1);
+
+			// 뷰모드. 고른 값은 렌더 직전에 Renderer로 넘어가 UberLit 변형을 고른다.
+			const EViewMode CurrentViewMode = ViewportAdapter->GetViewMode(ViewIndex);
+
+			// 가장 긴 뷰모드 이름 기준으로 Combo 폭을 잡는다.
+			const char* LongestViewModeName = GetViewModeName(CurrentViewMode);
+			for (int32 ModeIndex = 0; ModeIndex < static_cast<int32>(EViewMode::Count); ++ModeIndex)
+			{
+				const char* Name = GetViewModeName(static_cast<EViewMode>(ModeIndex));
+				if (ImGui::CalcTextSize(Name).x > ImGui::CalcTextSize(LongestViewModeName).x)
+					LongestViewModeName = Name;
+			}
+
+			ImGui::SetNextItemWidth(PlaceToolbarItem(ComboWidth(LongestViewModeName)));
+			if (ImGui::BeginCombo("##ViewMode", GetViewModeName(CurrentViewMode)))
+			{
+				for (int32 ModeIndex = 0; ModeIndex < static_cast<int32>(EViewMode::Count); ++ModeIndex)
+				{
+					const EViewMode Candidate = static_cast<EViewMode>(ModeIndex);
+					const bool bSelected = Candidate == CurrentViewMode;
+					if (ImGui::Selectable(GetViewModeName(Candidate), bSelected))
+						ViewportAdapter->SetViewMode(ViewIndex, Candidate);
+					if (bSelected)
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+		}
+
+		// Single / Quad
+		if (CurrentLayoutMode == ELayoutMode::QuadSplit)
+		{
+			PlaceToolbarItem(SmallButtonWidth("Single"));
 			if (ImGui::SmallButton("Single"))
 			{
 				RequestedLayoutMode = ELayoutMode::Single;
@@ -280,36 +328,47 @@ void FViewportsPanel::OnRender()
 				bHasLayoutRequest = true;
 			}
 		}
-		else if (ViewIndex == CurrentSingleViewIndex && ImGui::SmallButton("Quad"))
+		else if (ViewIndex == CurrentSingleViewIndex)
 		{
-			RequestedLayoutMode = ELayoutMode::QuadSplit;
-			RequestedSingleViewIndex = ViewIndex;
-			bHasLayoutRequest = true;
+			PlaceToolbarItem(SmallButtonWidth("Quad"));
+			if (ImGui::SmallButton("Quad"))
+			{
+				RequestedLayoutMode = ELayoutMode::QuadSplit;
+				RequestedSingleViewIndex = ViewIndex;
+				bHasLayoutRequest = true;
+			}
 		}
+
+		// Reset Stats
 		if (ViewportAdapter && ViewIndex == ViewportAdapter->GetEditorViewIndex() &&
 			FStatOverlay::IsAnyEnabled() &&
 			(FStatOverlay::IsEnabled(EStatFlags::Profile) ||
 				FStatRegistry::Find(EditorStats::STAT_PickingTime)))
 		{
-			ImGui::SameLine();
+			PlaceToolbarItem(SmallButtonWidth("Reset Stats"));
 			if (ImGui::SmallButton("Reset Stats"))
 				FStatRegistry::Reset();
 			StatResetButtonMin = ImGui::GetItemRectMin();
 			StatResetButtonMax = ImGui::GetItemRectMax();
 			bStatResetButtonVisible = true;
 		}
+
+		// 줄바꿈으로 늘어난 툴바 높이만큼 통계 오버레이를 아래로 민다.
+		ToolbarExtraHeight[ViewIndex] = Cursor.y - Top;
+
 		ImGui::PopID();
 	}
 
 	// 마지막으로 선택된 뷰포트만 오버레이
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
 	{
-		if (ViewIndex != ViewportAdapter->GetEditorViewIndex()) continue;
+		if (!ViewportAdapter || ViewIndex != ViewportAdapter->GetEditorViewIndex())
+			continue;
 		if (!Slots[ViewIndex].bActive)
 			continue;
 		DrawStatOverlay(DrawList, {
 			ContentOrigin.x + Slots[ViewIndex].Rect.X,
-			ContentOrigin.y + Slots[ViewIndex].Rect.Y});
+			ContentOrigin.y + Slots[ViewIndex].Rect.Y + ToolbarExtraHeight[ViewIndex]});
 	}
 
 	ImGui::End();
