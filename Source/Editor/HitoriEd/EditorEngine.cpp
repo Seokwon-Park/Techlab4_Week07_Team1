@@ -801,10 +801,6 @@ void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo&
 	RenderCommand::EndRenderPass(PassInfo);
 }
 
-void UEditorEngine::RenderNormalPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward) {
-
-}
-
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::UpdateGizmoAndPicking()
 {

@@ -186,21 +186,15 @@ PS_INPUT mainVS(VS_INPUT Input)
     return Output;
 }
 
-struct PS_OUT
-{
-    float4 color : SV_TARGET;
-    float4 normal : SV_TARGET1;
-};
-
-PS_OUT mainPS(PS_INPUT Input)
-{
+float4 mainPS(PS_INPUT Input) : SV_TARGET {
     const float2 UV = { Input.uv + UVOffset };
     const float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
     const float3 VertexNormal = { normalize(Input.normal) };
     const float3 T = { normalize(Input.tangent.xyz - VertexNormal * dot(VertexNormal, Input.tangent.xyz)) };
     const float3 B = { cross(VertexNormal, T) * (Input.tangent.w < 0.0f ? -1.0f : 1.0f) };
     const float3 TangentNormal = { NormalTexture.Sample(g_Sample, UV).xyz * 2.0f - 1.0f };
-    const float3 N = { normalize(T * TangentNormal.x + B * TangentNormal.y + VertexNormal * TangentNormal.z) };
+    const float3 N = { normalize(T * TangentNormal.x + B * -TangentNormal.y + VertexNormal * TangentNormal.z) };
+
     
     // return float4(TangentNormal); // 노멀맵 확인용
     
@@ -218,11 +212,5 @@ PS_OUT mainPS(PS_INPUT Input)
 
     // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
     const float Alpha = { bOpaque > 0.5f ? 1.0f : Albedo.a };
-    
-    PS_OUT Out = (PS_OUT) 0;
-    
-    Out.color = float4(Albedo.rgb * Lighting, Alpha);
-    Out.normal = float4(N, 1.f);
-    Out.color = Out.normal;
-    return Out; 
+    return float4(Albedo.rgb * Lighting, Alpha);
 }
