@@ -100,8 +100,8 @@ namespace
 				}
 			}
 
-			if (!Slot.mNormalTexturePath.empty()) {
-				if (UTexture2D* NormalTexture{ UAssetManager::Get().LoadTexture(Slot.mNormalTexturePath) }) {
+			if (!Slot.NormalTexturePath.empty()) {
+				if (UTexture2D* NormalTexture{ UAssetManager::Get().LoadTexture(Slot.NormalTexturePath) }) {
 					Material->Textures[1] = NormalTexture;
 				}
 			}
