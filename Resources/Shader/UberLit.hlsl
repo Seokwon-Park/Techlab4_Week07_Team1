@@ -3,7 +3,7 @@
 // 조명 모델은 C++(FRenderResourceManager::LoadUberLit)이 매크로로 하나만 넘긴다.
 // 아무 매크로 없이 컴파일될 때(기존 머티리얼이 쓰는 기본 키)만 Lambert를 켠다.
 #if !defined(LIGHTING_MODEL_UNLIT) && !defined(LIGHTING_MODEL_GOURAUD) && \
-    !defined(LIGHTING_MODEL_LAMBERT) && !defined(LIGHTING_MODEL_PHONG) && \
+    !defined(LIGHTING_MODEL_LAMBERT) && !defined(LIGHTING_MODEL_BLINN_PHONG) && \
     !defined(WORLD_NORMAL)
 #define LIGHTING_MODEL_LAMBERT 1
 #endif
@@ -123,13 +123,41 @@ struct PS_INPUT
 #endif
 };
 
-float LocalLightFactor(float3 LightPos, float Radius, float FalloffExp, float3 N, float3 WorldPos, out float3 L)
+struct FLightContribution
+{
+    float3 Diffuse;
+    float3 Specular;
+};
+
+// L 벡터와 Attenuation을 구한다. 
+float LocalLightAttenuation(float3 LightPos, float Radius, float FalloffExp, float3 WorldPos, out float3 L)
 {
     const float3 ToLight = LightPos - WorldPos; //픽셀의 월드 좌표에서 빛을 향하는 벡터를 구한다.
     const float Dist = length(ToLight); // 벡터 길이
     L = ToLight / max(Dist, 0.0001f); // normalize 벡터
     const float Atten = pow(saturate(1.0f - Dist / max(Radius, 0.001f)), max(FalloffExp, 0.001f)); // 거리와 radius에 비례한 강도 계산
-    return saturate(dot(N, L)) * Atten; // ndotl에 강도 적용
+    return Atten;
+}
+
+// 원뿔 감쇠량 
+float SpotConeFactor(FSpotLightInfo S, float3 L)
+{
+    const float Cone = smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
+    return Cone; // ndotl에 강도 적용
+}
+
+// Diffuse와 Specular를 구한다
+FLightContribution ShadeLight(float3 N, float3 L, float3 V, float3 Radiance, float Shininess)
+{
+    FLightContribution Result = (FLightContribution)0;
+    Result.Diffuse = saturate(dot(normalize(N), normalize(L)));
+
+#if LIGHTING_MODEL_BLINN_PHONG
+    // Blinn Specular
+    float3 H = normalize(L + V);
+    Result.Specular = pow(saturate(max(0, dot(N, H))), Shininess);
+#endif
+    return Result;
 }
 
 // 표면에 들어오는 빛의 양만 돌려준다. 표면색(albedo)은 호출한 쪽에서 곱한다.
@@ -146,32 +174,25 @@ float3 CalcDirectional(float3 N)
 float3 CalcPoint(FPointLightInfo P, float3 N, float3 WorldPos)
 {
     float3 L;
-    return P.Color * P.Intensity * LocalLightFactor(P.Position, P.Radius, P.FalloffExponent, N, WorldPos, L);
-
+    float Attenuation = LocalLightAttenuation(P.Position, P.Radius, P.FalloffExponent, WorldPos, L);
+    float3 V = CameraWorldPos - P.Position;
+    FLightContribution Contribution = ShadeLight(N, L, V, P.Radius, Shininess);
+    return P.Color * P.Intensity * Attenuation * (Contribution.Diffuse + Contribution.Specular);
 }
 
+// Spot은 Point에서 ConeFactor만 곱하면 된다
 float3 CalcSpot(FSpotLightInfo S, float3 N, float3 WorldPos)
 {
-    float3 L;
-    const float Base = LocalLightFactor(S.Position, S.Radius, S.FalloffExponent, N, WorldPos, L);
-    const float Cone = smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
-    return S.Color * S.Intensity * Base * Cone;
-}
-
-float3 CalcLighting(float3 N, float3 WorldPos)
-{
-    float3 Result = 0.f;
-    Result += CalcDirectional(N);
-    for (uint i = 0; i < NumPointLights; ++i)
-    {
-        Result += CalcPoint(PointLights[i], N, WorldPos);
-    }
+    FPointLightInfo P;
+    P.Color = S.Color;
+    P.FalloffExponent = S.FalloffExponent;
+    P.Intensity = S.Intensity;
+    P.Position = S.Position;
+    P.Radius = S.Radius;
+    float3 Light = CalcPoint(P, N, WorldPos);
     
-    for (uint s = 0; s < NumSpotLights; ++s)
-    {
-        Result += CalcSpot(SpotLights[s], N, WorldPos);
-    }
-    return Result;
+    float3 L = S.Position - WorldPos;
+    return Light * SpotConeFactor(S, L);
 }
 
 //float3 CalcRect(FRectLightInfo R, float3 N, float3 WorldPos)
@@ -193,6 +214,24 @@ float3 CalcLighting(float3 N, float3 WorldPos)
 //    return R.Color * R.Intensity * Base * FrontFace;
 //}
 
+
+float3 CalcLighting(float3 N, float3 WorldPos)
+{
+    float3 Result = 0.f;
+    Result += CalcDirectional(N);
+    for (uint i = 0; i < NumPointLights; ++i)
+    {
+        Result += CalcPoint(PointLights[i], N, WorldPos);
+    }
+    
+    for (uint s = 0; s < NumSpotLights; ++s)
+    {
+        Result += CalcSpot(SpotLights[s], N, WorldPos);
+    }
+    return Result;
+}
+
+
 PS_INPUT mainVS(VS_INPUT Input)
 {
     PS_INPUT Output;
@@ -213,6 +252,7 @@ PS_INPUT mainVS(VS_INPUT Input)
     return Output;
 }
 
+
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
     const float4 Albedo = g_txColor.Sample(g_Sample, Input.uv + UVOffset) * BaseColor;
@@ -228,7 +268,7 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
 #else
     float3 Lighting = CalcAmbient();
     
-#if LIGHTING_MODEL_LAMBERT
+#if LIGHTING_MODEL_LAMBERT | LIGHTING_MODEL_BLINN_PHONG
     Lighting += CalcLighting(N, Input.worldPos);
     
 #elif LIGHTING_MODEL_GOURAUD

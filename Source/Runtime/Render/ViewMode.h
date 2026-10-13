@@ -7,7 +7,7 @@ enum class EViewMode : uint8
 {
 	Lit_Gouraud,
 	Lit_Lambert,
-	Lit_Phong,
+	Lit_BlinnPhong,
 	Unlit,
 	WorldNormal,
 	Count
@@ -19,7 +19,7 @@ inline const char* GetViewModeName(EViewMode Mode)
 	{
 	case EViewMode::Lit_Gouraud: return "Lit (Gouraud)";
 	case EViewMode::Lit_Lambert: return "Lit (Lambert)";
-	case EViewMode::Lit_Phong:   return "Lit (Phong)";
+	case EViewMode::Lit_BlinnPhong: return "Lit (Blinn-Phong)";
 	case EViewMode::Unlit:       return "Unlit";
 	case EViewMode::WorldNormal: return "World Normal";
 	default:                     return "Unknown";

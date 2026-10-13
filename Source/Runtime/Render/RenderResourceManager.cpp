@@ -53,14 +53,14 @@ void FRenderResourceManager::LoadUberLit(const fs::path& ShaderRoot)
 	static const D3D_SHADER_MACRO Unlit[] = { { "LIGHTING_MODEL_UNLIT", "1" },{ nullptr, nullptr } };
 	static const D3D_SHADER_MACRO Gouraud[] = { { "LIGHTING_MODEL_GOURAUD", "1" },{ nullptr, nullptr } };
 	static const D3D_SHADER_MACRO Lambert[] = { { "LIGHTING_MODEL_LAMBERT", "1" },{ nullptr, nullptr } };
-	static const D3D_SHADER_MACRO Phong[] = { { "LIGHTING_MODEL_PHONG", "1" },{ nullptr, nullptr } };
+	static const D3D_SHADER_MACRO BlinnPhong[] = { { "LIGHTING_MODEL_BLINN_PHONG", "1" },{ nullptr, nullptr } };
 	static const D3D_SHADER_MACRO WorldNormal[] = { { "WORLD_NORMAL", "1" },{ nullptr, nullptr } };
 
 	LoadOrCompileShader(Path);	// 기본 (Lambert)
 	LoadOrCompileShader(Path, Unlit);
 	LoadOrCompileShader(Path, Gouraud);
 	LoadOrCompileShader(Path, Lambert);
-	LoadOrCompileShader(Path, Phong);
+	LoadOrCompileShader(Path, BlinnPhong);
 	LoadOrCompileShader(Path, WorldNormal);
 
 	// 뷰모드 -> 변형 테이블. 컴파일에 실패한 키는 nullptr로 남는다(GetShaderProgram의 폴백을 쓰지 않으려고 맵을 직접 찾는다).
@@ -73,7 +73,7 @@ void FRenderResourceManager::LoadUberLit(const fs::path& ShaderRoot)
 	UberLitDefault = FindProgram(MakeShaderKey(Path, nullptr));
 	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Gouraud)] = FindProgram(MakeShaderKey(Path, Gouraud));
 	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Lambert)] = FindProgram(MakeShaderKey(Path, Lambert));
-	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Phong)]   = FindProgram(MakeShaderKey(Path, Phong));
+	UberLitPrograms[static_cast<int32>(EViewMode::Lit_BlinnPhong)] = FindProgram(MakeShaderKey(Path, BlinnPhong));
 	UberLitPrograms[static_cast<int32>(EViewMode::Unlit)]       = FindProgram(MakeShaderKey(Path, Unlit));
 	UberLitPrograms[static_cast<int32>(EViewMode::WorldNormal)] = FindProgram(MakeShaderKey(Path, WorldNormal));
 }
