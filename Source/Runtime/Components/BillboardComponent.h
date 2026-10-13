@@ -53,6 +53,7 @@ public:
 
 	bool IsEditorIcon() const { return bEditorIcon; }
 	void SetEditorIcon(bool IsEditorIcon) { bEditorIcon = IsEditorIcon; }
+	void SetIconSize(float S) { IconSize = S; }
 
 protected:
 	UMaterial* Material = nullptr;
@@ -61,5 +62,6 @@ protected:
 private:
 	const ULightComponentBase* TintSource = nullptr;
 	bool bEditorIcon = false;
+	float IconSize = 1.0f;
 
 };
