@@ -12,6 +12,9 @@ public:
 	UPointLightComponent();
 	virtual ~UPointLightComponent() override;
 
+	void DrawDebug(FLineBatcher* LineBatcher) const override;
+	ELightType GetLightType() const override { return ELightType::Point; }
+
 	float GetFalloff() const { return LightFalloffExponent; }
 	void SetFalloff(float InFalloff) { LightFalloffExponent = InFalloff; }
 	void DrawDebug(FLineBatcher* LineBatcher) const;

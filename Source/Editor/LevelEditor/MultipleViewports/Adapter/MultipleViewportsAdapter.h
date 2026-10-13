@@ -6,6 +6,7 @@
 #include "Containers/Queue.h"
 #include "Math/Matrix.h"
 #include "Render/RenderPacket.h"
+#include "Render/ViewMode.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
 #include "Containers/Map.h"
@@ -76,6 +77,9 @@ public:
     // View별 장면 래스터라이저 모드를 저장하고 조회한다.
     void SetViewWireframe(int32 Index, bool Value) { if (Index >= 0 && Index < MaxViewCount) ViewWireframe[Index] = Value; }
     bool IsViewWireframe(int32 Index) const { return Index >= 0 && Index < MaxViewCount && ViewWireframe[Index]; }
+    // View별 조명 뷰모드(UberLit 변형)를 저장하고 조회한다.
+    void SetViewMode(int32 Index, EViewMode Value) { if (Index >= 0 && Index < MaxViewCount) ViewModes[Index] = Value; }
+    EViewMode GetViewMode(int32 Index) const { return (Index >= 0 && Index < MaxViewCount) ? ViewModes[Index] : EViewMode::Lit_Lambert; }
     // 현재 마우스가 올라간 View 인덱스를 반환한다.
     int32 GetHoveredViewIndex() const { return InputState.HoveredViewIndex; }
     // 우클릭 입력을 Capture 중인 View 인덱스를 반환한다.
@@ -115,6 +119,9 @@ public:
     // 현재 가로·세로 Split 비율을 반환한다.
     const FSplitRatio& GetSplitRatio() const { return SplitRatio; }
 
+    FMatrix GetEngineView(int32 ViewIndex) const;
+    FMatrix GetEngineProjection(int32 ViewIndex) const;
+
 private:
     // Override가 있으면 그 카메라를, 없으면 저장 카메라를 반환한다. 외부 View는 Override만 쓴다.
     const FViewCamera& GetEffectiveCamera(int32 ViewIndex) const
@@ -129,6 +136,8 @@ private:
     struct PreparedView
     {
         FFrustumPlanes Frustum{};
+        FMatrix EngineView{};
+        FMatrix EngineProjection{};
         FMatrix EngineViewProjection{};
     };
     // 호출할 때마다 현재 카메라로 VP와 절두체를 계산한다.
@@ -146,6 +155,8 @@ private:
     int32 ActiveViewIndex = InvalidViewIndex;
     int32 EditorViewIndex = 0;
     bool ViewWireframe[MaxViewCount]{};
+    EViewMode ViewModes[MaxViewCount]{ EViewMode::Lit_Lambert, EViewMode::Lit_Lambert, EViewMode::Lit_Lambert, EViewMode::Lit_Lambert, EViewMode::Lit_Lambert };
+    static_assert(MaxViewCount == 5, "ViewModes initializer count must match MaxViewCount");
     FViewCamera CameraOverrides[MaxViewCount]{};
     bool bHasCameraOverride[MaxViewCount]{};
     FPickHit LastPick{};

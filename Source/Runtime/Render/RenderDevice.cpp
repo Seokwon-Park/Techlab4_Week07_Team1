@@ -5,6 +5,7 @@
 #include "Texture2D.h"
 #include "TextureCube.h"
 #include "PipelineState.h"
+#include "DDSTextureLoader11.h"
 
 FRenderDevice::FRenderDevice()
 {
@@ -138,6 +139,32 @@ TUniquePtr<FConstantBuffer> FRenderDevice::CreateConstantBuffer(uint32 BufferSiz
 	return Buffer;
 }
 
+TUniquePtr<FStructuredBuffer> FRenderDevice::CreateDynamicStructuredBuffer(uint32 Stride, uint32 Count)
+{
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.ByteWidth = Stride*Count;
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	Desc.StructureByteStride = Stride;
+
+	return MakeUnique<FStructuredBuffer>(Device.Get(), Desc, Stride, Count, nullptr);
+}
+
+TUniquePtr<FStructuredBuffer> FRenderDevice::CreateRWStructuredBuffer(uint32 Stride, uint32 Count)
+{
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.ByteWidth = Stride * Count;
+	Desc.Usage = D3D11_USAGE_DEFAULT;
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	Desc.StructureByteStride = Stride;
+
+
+	return MakeUnique<FStructuredBuffer>(Device.Get(), Desc, Stride, Count, nullptr);
+}
+
 TUniquePtr<FTexture2D> FRenderDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const FImageData& Image)
 {
 	return MakeUnique<FTexture2D>(Device.Get(), Desc, Image);
@@ -148,6 +175,36 @@ TUniquePtr<FTexture2D> FRenderDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC
 	TUniquePtr<FTexture2D> Texture = MakeUnique<FTexture2D>(Device.Get(), Desc, InitialData);
 
 	return Texture;
+}
+
+TUniquePtr<FTexture2D> FRenderDevice::LoadDDSTexture(const FString& Path) {
+	const std::u8string UTF8Path{ Path.begin(), Path.end() };
+	const std::wstring FilePath{ std::filesystem::path{ UTF8Path }.wstring() };
+	ComPtr<ID3D11Resource> Resource{};
+	const HRESULT LoadResult{ DirectX::CreateDDSTextureFromFile(Device.Get(), FilePath.c_str(), Resource.GetAddressOf(), nullptr) };
+	if (FAILED(LoadResult)) {
+		HTR_LOG(Error, "[Texture] DDS load failed: {} (hr=0x{:08X})", Path, static_cast<uint32>(LoadResult));
+		return nullptr;
+	}
+
+	ComPtr<ID3D11Texture2D> Texture{};
+	if (FAILED(Resource.As(&Texture))) {
+		HTR_LOG(Error, "[Texture] DDS is not a 2D texture: {}", Path);
+		return nullptr;
+	}
+
+	D3D11_TEXTURE2D_DESC Desc{};
+	Texture->GetDesc(&Desc);
+	if (Desc.ArraySize != 1 || (Desc.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0) {
+		HTR_LOG(Error, "[Texture] DDS arrays and cubemaps are not supported by UTexture2D: {}", Path);
+		return nullptr;
+	}
+
+	TUniquePtr<FTexture2D> LoadedTexture{ MakeUnique<FTexture2D>(Device.Get(), std::move(Resource), Desc) };
+	if (!LoadedTexture->GetSRV()) {
+		return nullptr;
+	}
+	return LoadedTexture;
 }
 
 TUniquePtr<FTextureCube> FRenderDevice::CreateTextureCube(const D3D11_TEXTURE2D_DESC& Desc, const TArray<const void*>& InitialDatas)
@@ -169,6 +226,13 @@ TUniquePtr<FPixelShader> FRenderDevice::CreatePixelShader(const FShaderByteCode&
 	TUniquePtr<FPixelShader> PS = MakeUnique<FPixelShader>(Device.Get(), ByteCode);
 
 	return PS;
+}
+
+TUniquePtr<FComputeShader> FRenderDevice::CreateComputeShader(const FShaderByteCode& ByteCode)
+{
+	TUniquePtr<FComputeShader> CS = MakeUnique<FComputeShader>(Device.Get(), ByteCode);
+
+	return CS;
 }
 
 //TUniquePtr<FShaderProgram> FRenderDevice::CreateShader(const wchar_t* FileName, D3D11_INPUT_ELEMENT_DESC* InLayoutDesc, size_t InLayoutSize)

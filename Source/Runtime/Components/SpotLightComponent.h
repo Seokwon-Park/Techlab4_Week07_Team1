@@ -18,7 +18,7 @@ public:
 	virtual ~USpotLightComponent() override = default;
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
-	ELightType GetLightType() const { return ELightType::Spot; }
+	ELightType GetLightType() const override { return ELightType::Spot; }
 
 	float GetInnerConeAngle() const { return InnerConeAngle; }
 	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }

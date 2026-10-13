@@ -5,6 +5,7 @@
 #include "Text/Font.h"
 
 #include "RenderingInfo.h"
+#include "ViewMode.h"
 #include "Occlusion/GPUOcclusion.h"
 #include "RenderEnums.h"
 #include "Material.h"
@@ -25,9 +26,21 @@ inline void WritePerObjectConstants(uint8* Dest, const FMatrix& World, const FMa
 	std::memcpy(Dest, &Constants, sizeof(Constants));
 }
 
-constexpr uint32 MaxPointLights = 4;
+// b0(Viewconstants)와 바이트 단위로 같아야 한다. View마다 RenderQueueSorting에서 한 번 올린다.
+struct alignas(16) FViewConstants
+{
+	FMatrix ViewProjection;
+	FVector CameraWorldPos;
+	float Padding = 0.0f;
+};
+static_assert(sizeof(FViewConstants) == 80, "UberLit.hlsl cbuffer Viewconstants 크기와 맞아야 한다");
+
+constexpr uint32 MaxPointLights = 1024;
 constexpr uint32 MaxSpotLights = 4;
 constexpr uint32 MaxRectLights = 4;
+constexpr uint32 TileSize = 16;
+constexpr uint32 MaxLightsPerTile = 255;
+constexpr uint32 TileStride = MaxLightsPerTile + 1;
 
 // UberLit.hlsl의 cbuffer Lighting과 바이트 단위로 같아야 한다. 모든 구조체를 16바이트 배수로 맞춘다.
 struct FAmbientLightInfo
@@ -63,8 +76,8 @@ struct FSpotLightInfo
 	FVector Direction;
 	float InnerConeCos;
 	float FalloffExponent;
-	float Padding[2];
 	float OuterConeCos;
+	float Padding[2];
 };
 
 struct FRectLightInfo
@@ -84,11 +97,13 @@ struct FRectLightInfo
 };
 
 
+
+
 struct alignas(16) FLightingConstants
 {
 	FAmbientLightInfo Ambient;
 	FDirectionalLightInfo Directional;
-	FPointLightInfo PointLights[MaxPointLights];
+	//FPointLightInfo PointLights[MaxPointLights];
 	FSpotLightInfo SpotLights[MaxSpotLights];
 	//FRectLightInfo RectLights[MaxRectLights];
 	uint32 NumPointLights;
@@ -125,6 +140,30 @@ struct FOcclusionMeasureResult
 	uint32 GPUOccludedDraws = 0;  // GPU가 가렸다고 판정한 드로우 수
 	uint32 FalseCulls = 0;        // 그중 실제로는 픽셀이 보인 드로우 수. 0이어야 한다
 };
+
+struct alignas(16) FFireBallLight
+{
+	FVector4 PositionRadius; // xyz: 위치, w: 반경
+	FVector4 ColorIntensity; // rgb: 색상, w: 강도
+	FVector4 FalloffEnabled; // x: 반경 감쇠, y: 사용 여부, zw: 패딩
+};
+
+struct alignas(16) FLightCullingConstants
+{
+	FMatrix View;
+	FMatrix Projection;
+	FVector2 ViewportSize;
+	uint32 NumTilesX;
+	uint32 NumPointLights;
+};
+
+struct alignas(16) FTileLightingConstants
+{
+	uint32 NumTilesX;
+	uint32 LightDebugMode;   // 0 = Off, 1 = Heatmap
+	uint32 Padding[2];
+};
+
 class FRenderer
 {
 public:
@@ -134,7 +173,7 @@ public:
 	void RenderAll(FRenderQueue& InQueue, UCameraComponent* CameraComponent);
 
 	// Adapter가 계산한 ViewProjection을 직접 받아 View별 렌더 큐를 그린다.
-	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos);
 
 	// 큐를 정렬해 불투명 패킷만 그린다. 반투명은 RenderTranslucent 호출 전까지 보관한다.
 	void RenderOpaque(const FMatrix& ViewProjection);
@@ -151,7 +190,8 @@ public:
 	void RenderTranslucent(const FMatrix& ViewProjection);
 
 	// 큐를 Material, Opaque, Mesh에 따라 정렬한다
-	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	// CameraWorldPos는 ViewProjection과 함께 b0에 올라가 Specular 계산(V 벡터)에 쓰인다.
+	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos);
 
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.
@@ -161,10 +201,32 @@ public:
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
 
-	// void SetFireBallLight(const FFireBallLightConstants& LightConstants);
-	void SetLighting(const FLightingConstants& LightingConstants);
+	//void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	void SetLighting(FLightingConstants& LightingConstants, const TArray<FPointLightInfo>& InPointLights, const TArray<FSpotLightInfo>& InSpotLights);
+
+	// 이후 그리는 UberLit 머티리얼이 쓸 조명 모델. View마다 RenderOpaque 전에 설정한다.
+	void SetViewMode(EViewMode InViewMode);
+	EViewMode GetViewMode() const { return CurrentViewMode; }
+
+	void CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height);
+
+	// public
+	void SetLightDebugMode(uint32 Mode);
+private:
+	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
+	void DrawStaticGroups();
+	void UpdatePerObjectConstants(const FMatrix& World);
+	void BindMaterial(UMaterial* Material);
+	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
+	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
+	void EnsurePerObjectSlotCapacity(uint32 SlotCount);
+	void UploadPerObjectConstants();
 
 private:
+	// private
+	TUniquePtr<FConstantBuffer> mTileLightingCB{};
+	uint32 mLightDebugMode{};
+
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;
 	// 정렬된 RenderPackets에서 반투명 패킷이 시작되는 위치
@@ -187,17 +249,8 @@ private:
 
 	FGPUOcclusion GPUOcclusion;
 
-	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
-	void DrawStaticGroups();
-	void UpdatePerObjectConstants(const FMatrix& World);
-
 	// 이번 프레임 스태틱 메시 묶음 (정렬 키 순). 비어 있지 않은 것만 담는다.
 	std::vector<const FStaticDrawGroup*> StaticGroups;
-	void BindMaterial(UMaterial* material);
-	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
-	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
-	void EnsurePerObjectSlotCapacity(uint32 SlotCount);
-	void UploadPerObjectConstants();
 
 	TArray<FSortEntry> SortEntries;
 
@@ -206,4 +259,15 @@ private:
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;
+	TUniquePtr<FConstantBuffer> mLightCullingCB{};
+
+	TUniquePtr<FStructuredBuffer> mTileIndexBuffer{};
+	TUniquePtr<FStructuredBuffer> mPointLightBuffer{};
+	TUniquePtr<FStructuredBuffer> mSpotLightBuffer{};
+
+	FComputeShader* mLightCullingCS{};
+
+	uint32 mNumPointLightsThisFrame{};
+
+	EViewMode CurrentViewMode = EViewMode::Lit_Lambert;
 };

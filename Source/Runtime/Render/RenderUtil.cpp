@@ -1,9 +1,50 @@
 #include "EnginePCH.h"
 #include "RenderUtil.h"
 
-FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType, const FShaderDefines& Defines)
+namespace
 {
-	const char* Target = (ShaderType == EShaderType::Vertex) ? "vs_5_0" : "ps_5_0";
+	const char* GetShaderTarget(EShaderType Type)
+	{
+		switch (Type)
+		{
+		case EShaderType::Vertex:
+			return "vs_5_0";
+			break;
+		case EShaderType::Pixel:
+			return "ps_5_0";
+			break;
+		case EShaderType::Compute:
+			return "cs_5_0";
+			break;
+		default:
+			return "";
+			break;
+		}
+	}
+
+	const char* GetShaderPrefix(EShaderType Type)
+	{
+		switch (Type)
+		{
+		case EShaderType::Vertex:
+			return "_VS.cso";
+			break;
+		case EShaderType::Pixel:
+			return  "_PS.cso";
+			break;
+		case EShaderType::Compute:
+			return  "_CS.cso";
+			break;
+		default:
+			return "";
+			break;
+		}
+	}
+}
+
+FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType, const D3D_SHADER_MACRO* Macros)
+{
+	const char* Target = GetShaderTarget(ShaderType);
 
 	uint32 Flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
@@ -13,14 +54,13 @@ FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, 
 	FShaderByteCode ByteCode;
 
 	std::wstring WPath(Path.begin(), Path.end());
-	std::vector<D3D_SHADER_MACRO> Macros;
 
-	for (const auto& D : Defines)
-		Macros.push_back({ D.first.c_str(), D.second.c_str() });
-	Macros.push_back({ nullptr, nullptr });		// 끝 표시
+	//for (const auto& D : Defines)
+	//	Macros.push_back({ D.first.c_str(), D.second.c_str() });
+	//Macros.push_back({ nullptr, nullptr });		// 끝 표시
 
 	ComPtr<ID3DBlob> ErrorBlob;
-	HRESULT hr = D3DCompileFromFile(WPath.c_str(), Macros.data(), nullptr, EntryPoint, Target, 0, 0, ByteCode.Blob.GetAddressOf(), ErrorBlob.GetAddressOf());
+	HRESULT hr = D3DCompileFromFile(WPath.c_str(), Macros, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint, Target, Flags, 0, ByteCode.Blob.GetAddressOf(), ErrorBlob.GetAddressOf());
 
 	if (FAILED(hr))
 	{
@@ -61,20 +101,32 @@ FShaderByteCode RenderUtil::LoadByteCode(const FString& CsoPath)
 	return Result;
 }
 
-FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const FString& Suffix)
+FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const D3D_SHADER_MACRO* Macros)
 {
 	const fs::path Rel = fs::relative(ShaderPath, "Resources/Shader");
-	const char* StageSuffix = (ShaderType == EShaderType::Vertex) ? "_VS.cso" : "_PS.cso";
+	const char* Suffix = GetShaderPrefix(ShaderType);
+	FString MacroSuffix;
+	while (Macros && Macros->Name)
+	{
+		MacroSuffix += FString("_") + Macros->Name;
+		Macros++;
+	}
 
 	fs::path Out = fs::path("Intermediate/Shaders") / Rel.parent_path();
-	Out /= Rel.stem().generic_string() + Suffix + StageSuffix;
+	Out /= Rel.stem().generic_string() + MacroSuffix.c_str() + Suffix;
 	return Out.generic_string();
 }
 
 // .cso 파일이 최신 컴파일인지 비교한다.
 bool RenderUtil::IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath)
 {
-	std::error_code Ec;  
+	std::ifstream SourceFile{ ShaderPath };
+	const std::string Source{ std::istreambuf_iterator<char>{ SourceFile }, std::istreambuf_iterator<char>{} };
+	if (Source.find("#include") != std::string::npos) {
+		return false;
+	}
+
+	std::error_code Ec;
 	if (!fs::exists(CsoPath, Ec)) return false;
 
 	const auto SrcTime = fs::last_write_time(ShaderPath, Ec);
@@ -85,10 +137,9 @@ bool RenderUtil::IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath
 	return CsoTime > SrcTime;
 }
 
-FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType,
-										const FString& Suffix, const FShaderDefines& Defines, FString& OutCSOPath)
+FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType, FString& OutCSOPath, const D3D_SHADER_MACRO* Macros)
 {
-	OutCSOPath = GetCsoPath(ShaderPath, ShaderType, Suffix);
+	OutCSOPath = GetCsoPath(ShaderPath, ShaderType, Macros);
 
 	if (IsCsoUpToDate(ShaderPath, OutCSOPath))
 	{
@@ -96,7 +147,7 @@ FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* 
 		if (Cached.IsValid()) return Cached;
 	}
 
-	FShaderByteCode Compiled = CompileShader(ShaderPath, EntryPoint, ShaderType, Defines);
+	FShaderByteCode Compiled = CompileShader(ShaderPath, EntryPoint, ShaderType, Macros);
 	if (Compiled.IsValid())
 		SaveByteCode(OutCSOPath, Compiled);
 

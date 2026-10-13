@@ -1,8 +1,9 @@
-﻿#include "EnginePCH.h"
+#include "EnginePCH.h"
 #include "Scene.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/SkyLightComponent.h"
 
 void FScene::AddPrimitive(UPrimitiveComponent* Component)
 {
@@ -105,8 +106,8 @@ void FScene::UpdateLights(FRenderer* Renderer)
 	Constants.Ambient.Color = FVector(1.0f, 1.0f, 1.0f);
 	Constants.Ambient.Intensity = 0.1f;
 
+	PointLights.Reset();
 	bool bHasDirectional = false;
-	Constants.NumPointLights = 0;
 	Constants.NumSpotLights = 0;
 	for (ULightComponent* Light : LightComponents)
 	{
@@ -128,8 +129,18 @@ void FScene::UpdateLights(FRenderer* Renderer)
 			Constants.Directional.Color = FVector(Color.R, Color.G, Color.B);
 			Constants.Directional.Intensity = Directional->GetIntensity();
 		}
+		else if (USkyLightComponent* Sky = Cast<USkyLightComponent>(Light))
+		{
+			const FLinearColor Color(Sky->GetLightColor());
+			Constants.Ambient.Color = FVector(Color.R, Color.G, Color.B);
+			Constants.Ambient.Intensity = Sky->GetIntensity();
+		}
 		else if (USpotLightComponent* Spot = Cast<USpotLightComponent>(Light))
 		{
+			if (Constants.NumSpotLights >= MaxSpotLights) {
+				continue;
+			}
+
 			FTransform Transform;
 			Transform.Rotation = Spot->GetWorldRotation();
 			const FLinearColor Color(Spot->GetLightColor());
@@ -148,20 +159,18 @@ void FScene::UpdateLights(FRenderer* Renderer)
 		}
 		else if (UPointLightComponent* Point = Cast<UPointLightComponent>(Light))
 		{
-			FTransform Transform;
 			const FLinearColor Color(Point->GetLightColor());
-
-			Constants.PointLights[Constants.NumPointLights].Color = FVector(Color.R, Color.G, Color.B);
-			Constants.PointLights[Constants.NumPointLights].FalloffExponent = Point->GetFalloff();
-			Constants.PointLights[Constants.NumPointLights].Intensity = Point->GetIntensity();
-			Constants.PointLights[Constants.NumPointLights].Position = Point->GetWorldLocation();
-			Constants.PointLights[Constants.NumPointLights].Radius = Point->GetAttenuationRadius();
-			Constants.NumPointLights++;
+			FPointLightInfo Info{};
+			Info.Position = Point->GetWorldLocation();
+			Info.Radius = Point->GetAttenuationRadius();
+			Info.Color = FVector(Color.R, Color.G, Color.B);
+			Info.Intensity = Point->GetIntensity();
+			Info.FalloffExponent = Point->GetFalloff();
+			PointLights.Add(Info);
 		}
-
 	}
 
-	Renderer->SetLighting(Constants);
+	Renderer->SetLighting(Constants, PointLights, SpotLights);
 }
 
 void FScene::AddFogInfo(uint32 Id, const FFogInfo& FogInfo)

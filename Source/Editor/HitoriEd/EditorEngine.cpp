@@ -401,6 +401,7 @@ void UEditorEngine::RenderMultipleViewports()
 	UpdatePIEViewCamera();
 
 	UWorld* CapturedWorld = nullptr;
+	Renderer->SetLightDebugMode(SettingsPanel->GetSettings().LightDebugMode);
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
 	{
 		const bool bActive = MultipleViewportsAdapter.IsViewActive(ViewIndex);
@@ -556,6 +557,8 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
 	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
 		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
+	// View별 조명 뷰모드. 불투명·반투명 모두 이 값으로 UberLit 변형을 고른다.
+	Renderer->SetViewMode(MultipleViewportsAdapter.GetViewMode(ViewIndex));
 
 	// 렌더 루프 — 반드시 RenderAll보다 먼저
 	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
@@ -567,7 +570,12 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
-		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
+		Renderer->RenderQueueSorting(RenderQueue, ViewProjection, ViewCameraLocation);
+		Renderer->CullLights(
+			MultipleViewportsAdapter.GetEngineView(ViewIndex),
+			MultipleViewportsAdapter.GetEngineProjection(ViewIndex),
+			ViewRenderingInfo.ViewportSetting.Width,
+			ViewRenderingInfo.ViewportSetting.Height);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
@@ -687,11 +695,11 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		// 아이콘 먼저 그리기 (반투명)
-		Renderer->RenderQueueSorting(IconQueue, ViewProjection);
+		Renderer->RenderQueueSorting(IconQueue, ViewProjection, ViewCameraLocation);
 		Renderer->RenderTranslucent(ViewProjection);
 		
 		// 화살표 그리기 (불투명)
-		Renderer->RenderQueueSorting(ArrowQueue, ViewProjection);
+		Renderer->RenderQueueSorting(ArrowQueue, ViewProjection, ViewCameraLocation);
 		Renderer->RenderOpaque(ViewProjection);
 		Renderer->RenderTranslucent(ViewProjection);	// 패킷 뒷정리
 	}

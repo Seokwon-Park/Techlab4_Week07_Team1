@@ -22,7 +22,6 @@ public:
 	virtual void BeginPlay() {};
 	virtual void TickComponent(float DeltaTime)
 	{
-		HTR_LOG(Info, "TickComponent");
 	};
 
 	void SetOwner(AActor* InOwner) { Owner = InOwner; }

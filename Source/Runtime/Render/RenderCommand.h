@@ -8,6 +8,7 @@ class UTexture2D;
 class FShaderProgram;
 class FVertexShader;
 class FPixelShader;
+class FComputeShader;
 struct FRenderingInfo;
 
 enum class EShaderBindFlagBits : uint32
@@ -36,12 +37,18 @@ public:
 
 	static TUniquePtr<FConstantBuffer> CreateConstantBuffer(uint32 BufferSize);
 
+	static TUniquePtr<FStructuredBuffer> CreateDynamicStructuredBuffer(uint32 Stride, uint32 Count);
+	static TUniquePtr<FStructuredBuffer> CreateRWStructuredBuffer(uint32 Stride, uint32 Count);
+
 	static TUniquePtr<FTexture2D> CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const void* InitialData = nullptr);
 	static TUniquePtr<FTexture2D> CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const FImageData& Image);
+	static TUniquePtr<FTexture2D> LoadDDSTexture(const FString& Path);
 	static TUniquePtr<FTextureCube> CreateTextureCube(const D3D11_TEXTURE2D_DESC& Desc, const TArray<const void*>& InitialDatas);
 
 	static TUniquePtr<FVertexShader> CreateVertexShader(const FShaderByteCode& ByteCode);
 	static TUniquePtr<FPixelShader> CreatePixelShader(const FShaderByteCode& ByteCode);
+	static TUniquePtr<FComputeShader> CreateComputeShader(const FShaderByteCode& ByteCode);
+
 
 	static void BindPipelineState(const FPipelineState& PipelineState);
 
@@ -73,6 +80,9 @@ public:
 	static void Unmap(FBuffer* InBuffer);
 	static void BindShaderResource(uint32 Slot, FTexture2D* Texture2D, EShaderBindFlagBits FlagBits);
 	static void BindShaderResource(uint32 Slot, UTexture2D* Texture2D, EShaderBindFlagBits FlagBits);
+	static void BindShaderResource(uint32 Slot, FStructuredBuffer* StructuredBuffer, EShaderBindFlagBits FlagBits);
+	
+
 	// 슬롯의 SRV를 비운다. 같은 텍스처를 다음 패스에서 RTV로 쓰기 전에 호출한다.
 	static void UnbindShaderResource(uint32 Slot, EShaderBindFlagBits FlagBits);
 	// 크기·포맷이 같은 두 텍스처의 내용을 통째로 복사한다.
@@ -88,6 +98,12 @@ public:
 	static void SetBlendState(EBlendState State);
 	static void SetDepthStencilState(EDepthStencilState State);
 	static void BindSamplerState(uint32 Slot, ESamplerState SamplerState, EShaderBindFlagBits FlagBits);
+
+	//Compute Shader Commands
+	static void BindComputeShader(FComputeShader* ComputeShader);
+	static void Dispatch(UINT ThreadGroupCountX,UINT ThreadGroupCountY,UINT ThreadGroupCountZ);
+	static void BindUnorderedAccess(uint32 Slot, FStructuredBuffer* StructuredBuffer);
+	static void UnbindUnorderedAccess(uint32 Slot);
 
 	inline static void SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topology)
 	{
@@ -112,5 +128,7 @@ public:
 
 
 private:
+	inline static void BindShaderResource(uint32 Slot, ID3D11ShaderResourceView* SRV, EShaderBindFlagBits FlagBits);
+
 	inline static FRenderDevice* RenderDevice = nullptr;
 };

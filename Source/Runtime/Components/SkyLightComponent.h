@@ -11,7 +11,7 @@ public:
 	USkyLightComponent();
 	virtual ~USkyLightComponent() override;
 
-	ELightType GetLightType() const { return ELightType::Sky; }
+	ELightType GetLightType() const override { return ELightType::Sky; }
 	
 protected:
 private:

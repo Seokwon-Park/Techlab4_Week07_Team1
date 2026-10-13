@@ -87,6 +87,7 @@ json UMaterial::SaveMaterial(const UMaterial* Material)
 		Material->UVScrollSpeed.X,
 		Material->UVScrollSpeed.Y
 	};
+	Out["Shininess"] = Material->Shininess;
 	Out["SamplerState"] = Material->SamplerState == ESamplerState::LinearWrap ? "LinearWrap" : "LinearClamp";
 	Out["BlendState"] = Material->BlendState == EBlendState::AlphaBlend ? "AlphaBlend" : "Opaque";
 
@@ -148,6 +149,10 @@ UMaterial* UMaterial::LoadMaterial(const json& In)
 	{
 		const auto& UV = In["UVScrollSpeed"];
 		Instance->UVScrollSpeed = FVector2(UV[0].get<float>(), UV[1].get<float>());
+	}
+	if (In.contains("Shininess"))
+	{
+		Instance->Shininess = In["Shininess"].get<float>();
 	}
 	if (In.contains("SamplerState"))
 	{
