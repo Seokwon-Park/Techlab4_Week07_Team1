@@ -98,5 +98,5 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 
 	FColor InnerColor(LightColor.R * 0.5f, LightColor.G * 0.5f, LightColor.B * 0.5f, LightColor.A);
 
-	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor.ToVector4());
+	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
 }

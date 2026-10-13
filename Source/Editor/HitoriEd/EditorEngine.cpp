@@ -445,7 +445,7 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
+			//ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateLights(Renderer);
 			CapturedWorld = ViewWorld;
 		}
