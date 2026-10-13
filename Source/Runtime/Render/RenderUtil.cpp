@@ -120,6 +120,12 @@ FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType
 // .cso 파일이 최신 컴파일인지 비교한다.
 bool RenderUtil::IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath)
 {
+	std::ifstream SourceFile{ ShaderPath };
+	const std::string Source{ std::istreambuf_iterator<char>{ SourceFile }, std::istreambuf_iterator<char>{} };
+	if (Source.find("#include") != std::string::npos) {
+		return false;
+	}
+
 	std::error_code Ec;
 	if (!fs::exists(CsoPath, Ec)) return false;
 

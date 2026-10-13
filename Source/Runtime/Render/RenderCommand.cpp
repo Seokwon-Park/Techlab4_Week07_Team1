@@ -337,9 +337,8 @@ void RenderCommand::UnbindUnorderedAccess(uint32 Slot)
 
 }
 
-void RenderCommand::BindShaderResource(uint32 Slot, FStructuredBuffer* StructuredBuffer, EShaderBindFlagBits FlagBits)
-{
-	ID3D11ShaderResourceView* SRV = StructuredBuffer->GetSRV();
+void RenderCommand::BindShaderResource(uint32 Slot, FStructuredBuffer* StructuredBuffer, EShaderBindFlagBits FlagBits) {
+	ID3D11ShaderResourceView* SRV{ StructuredBuffer ? StructuredBuffer->GetSRV() : nullptr };
 	BindShaderResource(Slot, SRV, FlagBits);
 }
 
@@ -361,4 +360,4 @@ inline void RenderCommand::BindShaderResource(uint32 Slot, ID3D11ShaderResourceV
 	}
 }
 
- 
+

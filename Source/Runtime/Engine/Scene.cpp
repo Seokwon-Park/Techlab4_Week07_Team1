@@ -1,4 +1,4 @@
-﻿#include "EnginePCH.h"
+#include "EnginePCH.h"
 #include "Scene.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
@@ -137,6 +137,10 @@ void FScene::UpdateLights(FRenderer* Renderer)
 		}
 		else if (USpotLightComponent* Spot = Cast<USpotLightComponent>(Light))
 		{
+			if (Constants.NumSpotLights >= MaxSpotLights) {
+				continue;
+			}
+
 			FTransform Transform;
 			Transform.Rotation = Spot->GetWorldRotation();
 			const FLinearColor Color(Spot->GetLightColor());

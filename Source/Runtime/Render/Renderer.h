@@ -209,13 +209,23 @@ public:
 	EViewMode GetViewMode() const { return CurrentViewMode; }
 
 	void CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height);
-	
+
 	// public
-	void SetLightDebugMode(uint32 Mode) { LightDebugMode = Mode; }
+	void SetLightDebugMode(uint32 Mode);
+private:
+	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
+	void DrawStaticGroups();
+	void UpdatePerObjectConstants(const FMatrix& World);
+	void BindMaterial(UMaterial* Material);
+	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
+	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
+	void EnsurePerObjectSlotCapacity(uint32 SlotCount);
+	void UploadPerObjectConstants();
+
 private:
 	// private
-	TUniquePtr<FConstantBuffer> TileLightingCB;
-	uint32 LightDebugMode = 0;
+	TUniquePtr<FConstantBuffer> mTileLightingCB{};
+	uint32 mLightDebugMode{};
 
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;
@@ -239,17 +249,8 @@ private:
 
 	FGPUOcclusion GPUOcclusion;
 
-	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
-	void DrawStaticGroups();
-	void UpdatePerObjectConstants(const FMatrix& World);
-
 	// 이번 프레임 스태틱 메시 묶음 (정렬 키 순). 비어 있지 않은 것만 담는다.
 	std::vector<const FStaticDrawGroup*> StaticGroups;
-	void BindMaterial(UMaterial* material);
-	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
-	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
-	void EnsurePerObjectSlotCapacity(uint32 SlotCount);
-	void UploadPerObjectConstants();
 
 	TArray<FSortEntry> SortEntries;
 
@@ -258,15 +259,15 @@ private:
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;
-	TUniquePtr<FConstantBuffer> LightCullingCB;
+	TUniquePtr<FConstantBuffer> mLightCullingCB{};
 
-	TUniquePtr<FStructuredBuffer> TileIndexBuffer;
-	TUniquePtr<FStructuredBuffer> PointLightBuffer;
-	TUniquePtr<FStructuredBuffer> SpotLightBuffer;
+	TUniquePtr<FStructuredBuffer> mTileIndexBuffer{};
+	TUniquePtr<FStructuredBuffer> mPointLightBuffer{};
+	TUniquePtr<FStructuredBuffer> mSpotLightBuffer{};
 
-	FComputeShader* LightCullingCS;
+	FComputeShader* mLightCullingCS{};
 
-	uint32 NumPointLightsThisFrame = 0;
+	uint32 mNumPointLightsThisFrame{};
 
 	EViewMode CurrentViewMode = EViewMode::Lit_Lambert;
 };
