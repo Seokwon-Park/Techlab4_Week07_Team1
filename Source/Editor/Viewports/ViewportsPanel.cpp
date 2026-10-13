@@ -252,6 +252,24 @@ void FViewportsPanel::OnRender()
             if (ImGui::Combo("##FillMode", &Mode, Labels, 2))
                 ViewportAdapter->SetViewWireframe(ViewIndex, Mode == 1);
             ImGui::SameLine();
+
+            // ㅣ 뷰모드. 고른 값은 렌더 직전에 Renderer로 넘어가 UberLit 변형을 고른다.
+            const EViewMode CurrentViewMode = ViewportAdapter->GetViewMode(ViewIndex);
+            ImGui::SetNextItemWidth(120.0f);
+            if (ImGui::BeginCombo("##ViewMode", GetViewModeName(CurrentViewMode)))
+            {
+                for (int32 ModeIndex = 0; ModeIndex < static_cast<int32>(EViewMode::Count); ++ModeIndex)
+                {
+                    const EViewMode Candidate = static_cast<EViewMode>(ModeIndex);
+                    const bool bSelected = Candidate == CurrentViewMode;
+                    if (ImGui::Selectable(GetViewModeName(Candidate), bSelected))
+                        ViewportAdapter->SetViewMode(ViewIndex, Candidate);
+                    if (bSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::SameLine();
         }
         if (CurrentLayoutMode == ELayoutMode::QuadSplit)
 		{

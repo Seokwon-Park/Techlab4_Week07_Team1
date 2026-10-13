@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LightComponentBase.h"
+#include "Render/LineBatcher.h"
 
 class ULightComponent : public ULightComponentBase
 {
@@ -10,13 +11,16 @@ class ULightComponent : public ULightComponentBase
 public:
 	ULightComponent();
 	virtual ~ULightComponent() override;
+
+	virtual ELightType GetLightType() const = 0;
+	virtual void DrawDebug(FLineBatcher* LineBatcher) const;
+
 protected:
 	virtual bool ShouldCreateRenderState() const override
-	{
-		return true;
-	}
+	{ return true; }
 
 	virtual void CreateRenderState() override;
 	virtual void DestroyRenderState() override;
 private:
+
 };

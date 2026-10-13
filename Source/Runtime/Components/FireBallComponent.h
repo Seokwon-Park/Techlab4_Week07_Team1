@@ -1,31 +1,19 @@
 #pragma once
-#include "SceneComponent.h"
+#include "PointLightComponent.h"
 
-class UFireBallComponent : public USceneComponent
+class UFireBallComponent : public UPointLightComponent
 {
-	DECLARE_CLASS(UFireBallComponent, USceneComponent)
+	DECLARE_CLASS(UFireBallComponent, UPointLightComponent)
 
 	REFLECT_START(ClassName)
 		PROPERTY(Intensity)
-		PROPERTY(Radius)
-		PROPERTY(RadiusFalloff)
-		PROPERTY_TYPE(LightColor, LinearColor)
 		REFLECT_END()
 
 public:
-	UFireBallComponent() = default;
+	UFireBallComponent();
 	virtual ~UFireBallComponent() override;
-	void InitializeComponent();
 
-	float GetIntensity() const { return Intensity; }
-	float GetRadius() const { return Radius; }
-	float GetRadiusFalloff() const { return RadiusFalloff; }
-	const FVector4& GetLightColor() const { return LightColor; }
-
+	ELightType GetLightType() const { return ELightType::Fireball; }
 
 private:
-	float Intensity = 1.8f;
-	float Radius = 6.5f;
-	float RadiusFalloff = 3.0f;
-	FVector4 LightColor = FVector4(1.0f, 0.0f, 0.8f, 1.0f);
 };

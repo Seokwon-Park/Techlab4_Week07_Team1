@@ -117,6 +117,7 @@ void UAssetManager::Init(const FAssetLoadProgress& OnProgress)
 	Get().ScanAssets("Assets", OnProgress);
 	Get().CreateDefaultMeshes();
 	Get().CreateParticleMaterial();
+	Get().CreateEditorArrowMaterial();
 }
 
 void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgress& OnProgress)
@@ -297,6 +298,15 @@ void UAssetManager::CreateParticleMaterial()
 	ParticleMat->ParamLayout = EMaterialParamLayout::ParticleSubUV;
 	ParticleMat->ParamBuffer = RenderCommand::CreateConstantBuffer(256);
 	RegisterAsset("SubUVMaterial", ParticleMat);
+}
+
+void UAssetManager::CreateEditorArrowMaterial()
+{
+	UMaterial* Base = GetAssetByPath<UMaterial>("DefaultMaterial");
+	UMaterial* ArrowMat = UMaterial::CreateInstance(Base);
+	ArrowMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl_UNLIT");
+	ArrowMat->BaseColor = FVector4(1, 1, 1, 1);		// 흰색
+	RegisterAsset("EditorArrowMaterial", ArrowMat);
 }
 
 void UAssetManager::Shutdown()

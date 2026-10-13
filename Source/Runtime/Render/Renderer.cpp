@@ -9,6 +9,7 @@
 #include "Engine/PrimitiveSceneProxy.h"
 
 #include "RenderCommand.h"
+#include "RenderResourceManager.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -61,8 +62,8 @@ bool FRenderer::Init()
 {
 	bUsePerObjectSlots = RenderCommand::SupportsConstantBufferOffsets();
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
-	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
-	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
+	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FViewConstants));
+	// FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
 	LightingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightingConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
@@ -130,21 +131,21 @@ void FRenderer::UploadPerObjectConstants()
 // 카메라의 ViewProjection을 공통 렌더 경로로 전달한다.
 void FRenderer::RenderAll(FRenderQueue& InQueue, UCameraComponent* CameraComponent)
 {
-	RenderAll(InQueue, CameraComponent->GetViewProjectionMatrix());
+	RenderAll(InQueue, CameraComponent->GetViewProjectionMatrix(), CameraComponent->GetWorldLocation());
 }
 
 // 불투명 우선·반투명 거리순으로 정렬해 View 행렬과 Section 범위로 그린다.
-void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
+void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos)
 {
-	RenderQueueSorting(InQueue, ViewProjection);
+	RenderQueueSorting(InQueue, ViewProjection, CameraWorldPos);
 	RenderOpaque(ViewProjection);
 	RenderTranslucent(ViewProjection);
 }
 
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
+	//RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 
 	DrawStaticGroups();
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
@@ -153,8 +154,8 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 // RenderOpaque가 남긴 반투명 패킷을 먼 것부터 그린다.
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
+	//RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -169,7 +170,7 @@ void FRenderer::DrawStaticGroups()
 		return;
 
 	SCOPE_CYCLE_COUNTER(STAT_DrawRenderPackets);
-	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex);
+	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 
 	UMaterial* BoundMaterial = nullptr;
 	for (const FStaticDrawGroup* Group : StaticGroups)
@@ -204,9 +205,12 @@ void FRenderer::DrawStaticGroups()
 	LastMaterial = nullptr;
 }
 
-void FRenderer::RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection)
+void FRenderer::RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos)
 {
-	RenderCommand::UpdateBufferData(ViewCB.get(), &ViewProjection);
+	FViewConstants ViewConstants;
+	ViewConstants.ViewProjection = ViewProjection;
+	ViewConstants.CameraWorldPos = CameraWorldPos;
+	RenderCommand::UpdateBufferData(ViewCB.get(), &ViewConstants);
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RenderQueueSorting);
 
@@ -252,7 +256,7 @@ void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProject
 	LastMaterial = nullptr;
 	uint8 LastLODIndex = 0;
 
-	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex);
+	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 
 
 	for (uint32 k = Begin; k < End; ++k)          // k = 정렬된 위치
@@ -351,7 +355,7 @@ FOcclusionMeasureResult FRenderer::MeasureOpaqueOcclusion(const FMatrix& ViewPro
 		OcclusionQueries.Add(std::move(Query));
 	}
 
-	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex);
+	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 	if (!bUsePerObjectSlots)
 		RenderCommand::BindConstantBuffer(2, PerObjectCB.get(), EShaderBindFlagBits::Vertex);
 
@@ -462,7 +466,14 @@ void FRenderer::EndObjectConstants()
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
-	RenderCommand::BindShaderProgram(material->Shader);
+	// UberLit 머티리얼이면 현재 뷰모드의 변형으로 바꿔 끼운다. 다른 셰이더(Text, Particle 등)는 그대로 둔다.
+	FShaderProgram* Program = material->Shader;
+	if (FRenderResourceManager::IsUberLitProgram(Program))
+	{
+		if (FShaderProgram* Variant = FRenderResourceManager::GetUberLitProgram(CurrentViewMode))
+			Program = Variant;
+	}
+	RenderCommand::BindShaderProgram(Program);
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
@@ -491,6 +502,7 @@ void FRenderer::UpdateMaterialParams(const FRenderPacket& RenderPacket)
 		Params.BaseColor = RenderPacket.Material->BaseColor;
 		Params.UVOffset = RenderPacket.Material->UVScrollSpeed * TotalTime;
 		Params.bOpaque = RenderPacket.Material->BlendState == EBlendState::Opaque ? 1.0f : 0.0f;
+		Params.Shininess = RenderPacket.Material->Shininess;
 
 		RenderCommand::UpdateBufferData(RenderPacket.Material->ParamBuffer.get(), &Params, sizeof(FStaticMeshMaterialParams));
 		RenderCommand::BindConstantBuffer(1, RenderPacket.Material->ParamBuffer.get(), EShaderBindFlagBits::Pixel);
@@ -531,10 +543,14 @@ void FRenderer::UpdatePerObjectConstants(const FMatrix& World)
 	RenderCommand::UpdateBufferData(PerObjectCB.get(), &Constants);
 }
 
-void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
+
+void FRenderer::SetViewMode(EViewMode InViewMode)
 {
-	FireBallLightData = LightData;
-	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
+	if (CurrentViewMode == InViewMode)
+		return;
+	CurrentViewMode = InViewMode;
+	// 같은 머티리얼이라도 셰이더가 바뀌므로 다음 드로우에서 다시 바인딩하게 한다.
+	LastMaterial = nullptr;
 }
 
 void FRenderer::SetLighting(const FLightingConstants& LightingConstants)

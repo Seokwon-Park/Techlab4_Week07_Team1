@@ -1,6 +1,18 @@
 #pragma once
 
 #include "PrimitiveComponent.h"
+#include "LightComponentBase.h"
+
+struct FSubUVConstants
+{
+	// 한 파티클을 그릴 때 Shader에 전달할 Atlas 프레임과 투명도 값을 담는다.
+	float CurrentFrame;
+	float AtlasRowSize;
+	float AtlasColSize;
+	//float Padding = 0.0f;
+	float Alpha;
+	FVector4 Tint = FVector4(1, 1, 1, 1);	// default 흰색
+};
 
 class UBillboardComponent : public UPrimitiveComponent
 {
@@ -24,6 +36,8 @@ public:
 	virtual UMaterial* GetMaterial(int32 SlotIndex) const override { return SlotIndex == 0 ? Material : nullptr; }
 	virtual void SetMaterial(int32 SlotIndex, UMaterial* InMaterial) override { if (SlotIndex == 0) Material = InMaterial; }
 
+	void SetTintSource(const ULightComponentBase* InSource) { TintSource = InSource; }
+
 	virtual const FStaticMeshData* GetMeshData() const override { return QuadMesh ? &QuadMesh->GetMeshData() : nullptr; }
 
 	void GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) const;
@@ -36,9 +50,16 @@ public:
 
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+
+	bool IsEditorIcon() const { return bEditorIcon; }
+	void SetEditorIcon(bool IsEditorIcon) { bEditorIcon = IsEditorIcon; }
+
 protected:
 	UMaterial* Material = nullptr;
 	UStaticMesh* QuadMesh = nullptr;
+	FSubUVConstants IconParams{ 0.0f, 1.0f, 1.0f, 1.0f };	// CurrentFrame, RowSize, ColSize, Alpha
 private:
+	const ULightComponentBase* TintSource = nullptr;
+	bool bEditorIcon = false;
 
 };
