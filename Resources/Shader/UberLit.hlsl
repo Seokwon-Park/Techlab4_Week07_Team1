@@ -123,6 +123,7 @@ struct PS_INPUT
 #endif
 };
 
+// Diffuse와 Specular를 담는 구조체
 struct FLightContribution
 {
     float3 Diffuse;
@@ -142,22 +143,26 @@ float LocalLightAttenuation(float3 LightPos, float Radius, float FalloffExp, flo
 // 원뿔 감쇠량 
 float SpotConeFactor(FSpotLightInfo S, float3 L)
 {
-    const float Cone = smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
-    return Cone; // ndotl에 강도 적용
+    return smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
 }
 
-// Diffuse와 Specular를 구한다
-FLightContribution ShadeLight(float3 N, float3 L, float3 V, float3 Radiance, float Shininess)
+// Diffuse와 Specular를 구한다. Radiance = Color * Intensity * Falloff (* ConeFactor)
+FLightContribution ShadeLight(float3 N, float3 L, float3 V, float3 Radiance, float InShininess)
 {
-    FLightContribution Result = (FLightContribution)0;
-    Result.Diffuse = saturate(dot(normalize(N), normalize(L)));
+    FLightContribution Contribution = (FLightContribution)0;
+    Contribution.Diffuse = saturate(dot(normalize(N), normalize(L)));
 
 #if LIGHTING_MODEL_BLINN_PHONG
     // Blinn Specular
     float3 H = normalize(L + V);
-    Result.Specular = pow(saturate(max(0, dot(N, H))), Shininess);
+    if (dot(N, L) > 0)
+    {
+        Contribution.Specular = pow(saturate(max(0, dot(N, H))), max(InShininess, 1.f));
+    }
 #endif
-    return Result;
+    Contribution.Diffuse *= Radiance;
+    Contribution.Specular *= Radiance;
+    return Contribution;
 }
 
 // 표면에 들어오는 빛의 양만 돌려준다. 표면색(albedo)은 호출한 쪽에서 곱한다.
@@ -166,33 +171,34 @@ float3 CalcAmbient()
     return Ambient.Color * Ambient.Intensity;
 }
 
-float3 CalcDirectional(float3 N)
+// Directional Light의 영향을 구한다
+FLightContribution CalcDirectional(float3 N, float3 V, float InShininess)
 {
-    return Directional.Color * Directional.Intensity * saturate(dot(N, -Directional.Direction));
+    float3 Radiance = Directional.Color * Directional.Intensity;
+    return ShadeLight(N, -Directional.Direction, V, Radiance, InShininess);
 }
 
-float3 CalcPoint(FPointLightInfo P, float3 N, float3 WorldPos)
+// 해당 WorldPos에서의 각 PointLight의 영향(밝기)를 구한다
+FLightContribution CalcPoint(FPointLightInfo P, float3 N, float3 V, float3 WorldPos, float InShininess)
 {
     float3 L;
     float Attenuation = LocalLightAttenuation(P.Position, P.Radius, P.FalloffExponent, WorldPos, L);
-    float3 V = CameraWorldPos - P.Position;
-    FLightContribution Contribution = ShadeLight(N, L, V, P.Radius, Shininess);
-    return P.Color * P.Intensity * Attenuation * (Contribution.Diffuse + Contribution.Specular);
+    float3 Radiance = P.Color * P.Intensity * Attenuation;
+    return ShadeLight(N, L, V, Radiance, InShininess);
+    
+    //return P.Color * P.Intensity * Attenuation * (Contribution.Diffuse + Contribution.Specular);
 }
 
 // Spot은 Point에서 ConeFactor만 곱하면 된다
-float3 CalcSpot(FSpotLightInfo S, float3 N, float3 WorldPos)
+FLightContribution CalcSpot(FSpotLightInfo S, float3 N, float3 V, float3 WorldPos, float InShininess)
 {
-    FPointLightInfo P;
-    P.Color = S.Color;
-    P.FalloffExponent = S.FalloffExponent;
-    P.Intensity = S.Intensity;
-    P.Position = S.Position;
-    P.Radius = S.Radius;
-    float3 Light = CalcPoint(P, N, WorldPos);
+    float3 L;
+    float Attenuation = LocalLightAttenuation(S.Position, S.Radius, S.FalloffExponent, WorldPos, L);
+    float3 Radiance = S.Color * S.Intensity * Attenuation * SpotConeFactor(S, L);
+    return ShadeLight(N, L, V, Radiance, InShininess);
     
-    float3 L = S.Position - WorldPos;
-    return Light * SpotConeFactor(S, L);
+    //float3 PointLight = S.Color * S.Intensity * Attenuation * (Contribution.Diffuse + Contribution.Specular);
+    //return PointLight * SpotConeFactor(S, L);
 }
 
 //float3 CalcRect(FRectLightInfo R, float3 N, float3 WorldPos)
@@ -215,23 +221,30 @@ float3 CalcSpot(FSpotLightInfo S, float3 N, float3 WorldPos)
 //}
 
 
-float3 CalcLighting(float3 N, float3 WorldPos)
+FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess)
 {
-    float3 Result = 0.f;
-    Result += CalcDirectional(N);
-    for (uint i = 0; i < NumPointLights; ++i)
-    {
-        Result += CalcPoint(PointLights[i], N, WorldPos);
-    }
+    // Directional Light는 초기에 한 번만 계산
+    FLightContribution Contribution = CalcDirectional(N, V, InShininess);
     
+    // 모든 PointLight의 Contribution을 누적
+    for (uint p = 0; p < NumPointLights; ++p)
+    {
+        FLightContribution Temp = CalcPoint(PointLights[p], N, V, WorldPos, InShininess);
+        Contribution.Diffuse += Temp.Diffuse;
+        Contribution.Specular += Temp.Specular;
+
+    }
+    // 모든 SpotLight의 Contribution을 누적
     for (uint s = 0; s < NumSpotLights; ++s)
     {
-        Result += CalcSpot(SpotLights[s], N, WorldPos);
+        FLightContribution Temp = CalcSpot(SpotLights[s], N, V, WorldPos, InShininess);
+        Contribution.Diffuse += Temp.Diffuse;
+        Contribution.Specular += Temp.Specular;
     }
-    return Result;
+    return Contribution;
 }
 
-
+// mainVS
 PS_INPUT mainVS(VS_INPUT Input)
 {
     PS_INPUT Output;
@@ -247,12 +260,14 @@ PS_INPUT mainVS(VS_INPUT Input)
     Output.uv = Input.uv;
     Output.color = Input.color;
 #if LIGHTING_MODEL_GOURAUD
-    Output.vertexLighting = CalcLighting(normalize(Output.normal), Output.worldPos);
+    float3 V = normalize(CameraWorldPos - Output.worldPos);
+    FLightContribution Contribution = CalcLighting(normalize(Output.normal), V, Output.worldPos, 1);
+    Output.vertexLighting = Contribution.Diffuse;
 #endif
     return Output;
 }
 
-
+// mainPS
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
     const float4 Albedo = g_txColor.Sample(g_Sample, Input.uv + UVOffset) * BaseColor;
@@ -261,21 +276,23 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
     // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
     const float Alpha = bOpaque > 0.5f ? 1.0f : Albedo.a;
 
-#if LIGHTING_MODEL_UNLIT
-    // 조명 없이 표면색 그대로
-    return float4(Albedo.rgb, Alpha);
-    
+#if LIGHTING_MODEL_UNLIT 
+    return float4(Albedo.rgb, Alpha); // 조명 없이 표면색 그대로
+#elif WORLD_NORMAL
+    return float4(N * 0.5f + 0.5f, 1.0f);
 #else
     float3 Lighting = CalcAmbient();
+    float3 Specular = 0.f;
     
-#if LIGHTING_MODEL_LAMBERT | LIGHTING_MODEL_BLINN_PHONG
-    Lighting += CalcLighting(N, Input.worldPos);
+    #if LIGHTING_MODEL_LAMBERT | LIGHTING_MODEL_BLINN_PHONG
+        float3 V = normalize(CameraWorldPos - Input.worldPos);
+        FLightContribution Contribution = CalcLighting(N, V, Input.worldPos, Shininess);
+        Lighting += Contribution.Diffuse;
+        Specular = Contribution.Specular;
     
-#elif LIGHTING_MODEL_GOURAUD
-    Lighting += Input.vertexLighting;
-    
-#endif
-
-    return float4(Albedo.rgb * Lighting, Alpha);
+    #elif LIGHTING_MODEL_GOURAUD
+        Lighting += Input.vertexLighting;
+    #endif
+        return float4(Albedo.rgb * Lighting + Specular, Alpha);
 #endif
 }
