@@ -46,7 +46,7 @@ namespace
 		}
 
 		Optimized.OptimizeTriangleOrderForVertexCache();
-		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertexPNCT) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertexPNCT));
+		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertex) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertex));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(Optimized.Indices.GetData(), static_cast<uint32>(Optimized.Indices.size()));
 		if (VB == nullptr || IB == nullptr) return nullptr;
 
@@ -257,7 +257,7 @@ void UAssetManager::CreateDefaultMeshes()
 		Indices,
 		ARRAYSIZE(Indices));
 
-	FVertexPNCT Vertex{};
+	FVertex Vertex{};
 	Vertex.Position = FVector(0.0f, -0.5f, 0.5f);
 	Mesh->MeshData.Vertices.Add(Vertex);
 	Vertex.Position = FVector(0.0f, 0.5f, 0.5f);
@@ -279,7 +279,7 @@ void UAssetManager::CreateDefaultMeshes()
 void UAssetManager::CreateDefaultMaterial()
 {
 	UMaterial* DefaultMat = NewObject<UMaterial>();
-	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl_LAMBERT");
+	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/UberLit.hlsl");
 	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
 
 
@@ -398,7 +398,7 @@ bool UAssetManager::ReorientStaticMesh(UStaticMesh& Mesh, const std::function<FV
 
 	FStaticMeshData& Data = Mesh.MeshData;
 	FBox Bounds{ FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX) };
-	for (FVertexPNCT& Vertex : Data.Vertices)
+	for (FVertex& Vertex : Data.Vertices)
 	{
 		Vertex.Position = Rotate(Vertex.Position);
 		Vertex.Normal = Rotate(Vertex.Normal);
@@ -409,7 +409,7 @@ bool UAssetManager::ReorientStaticMesh(UStaticMesh& Mesh, const std::function<FV
 
 	// 인덱스는 그대로다 (회전은 삼각형 감기 방향을 바꾸지 않는다). 정점 버퍼만 다시 올린다.
 	TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Data.Vertices.GetData(),
-		sizeof(FVertexPNCT) * static_cast<uint32>(Data.Vertices.Num()), sizeof(FVertexPNCT));
+		sizeof(FVertex) * static_cast<uint32>(Data.Vertices.Num()), sizeof(FVertex));
 	if (!VB)
 		return false;
 	Mesh.VertexBuffer = std::move(VB);
@@ -456,9 +456,9 @@ FLODGenerateResult UAssetManager::GenerateStaticMeshLODs(UStaticMesh& Mesh, cons
 
 		Resource.VertexBuffer = RenderCommand::CreateStaticVertexBuffer(
 			Resource.Data.Vertices.GetData(),
-			sizeof(FVertexPNCT) *
+			sizeof(FVertex) *
 			static_cast<uint32>(Resource.Data.Vertices.Num()),
-			sizeof(FVertexPNCT));
+			sizeof(FVertex));
 
 		Resource.IndexBuffer = RenderCommand::CreateStaticIndexBuffer(
 			Resource.Data.Indices.GetData(),

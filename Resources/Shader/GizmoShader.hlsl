@@ -10,9 +10,11 @@ struct VS_INPUT
 {
     float3 position : POSITION;
     float3 normal : NORMAL;
-    float4 color : COLOR;
+    float4 tangent : TANGENT;
     float2 uv : TEXCOORD;
+    float4 color : COLOR;
 };
+
 
 struct PS_INPUT
 {

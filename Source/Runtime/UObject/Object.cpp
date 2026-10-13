@@ -128,6 +128,14 @@ void UObject::Serialize(json& Handle, bool bIsLoading)
 			}
 			case EPropertyType::Color:
 			{
+				// FColor(4바이트)는 RGBA를 묶은 uint32로 저장한다
+				FColor& Value = *static_cast<FColor*>(Ptr);
+				if (bIsLoading) Value.DWColor() = Handle[Property.Name].get<uint32>();
+				else Handle[Property.Name] = Value.DWColor();
+				break;
+			}
+			case EPropertyType::LinearColor:
+			{
 				FVector4& Value = *static_cast<FVector4*>(Ptr);
 				if (bIsLoading) Value = Handle[Property.Name].get<FVector4>();
 				else Handle[Property.Name] = Value;
@@ -237,8 +245,8 @@ void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
 			case EPropertyType::Bool:      Value << *static_cast<bool*>(Ptr); break;
 			case EPropertyType::Vector:    Value << *static_cast<FVector*>(Ptr); break;
 			case EPropertyType::Vector4:
-			case EPropertyType::Color:     Value << *static_cast<FVector4*>(Ptr); break;
-			case EPropertyType::Color32:   Value << static_cast<FColor*>(Ptr)->Bits; break;
+			case EPropertyType::LinearColor: Value << *static_cast<FVector4*>(Ptr); break;
+			case EPropertyType::Color:     Value << *static_cast<FColor*>(Ptr); break;
 			case EPropertyType::Rotator:   Value << *static_cast<FRotator*>(Ptr); break;
 			case EPropertyType::Transform: Value << *static_cast<FTransform*>(Ptr); break;
 			case EPropertyType::Object:

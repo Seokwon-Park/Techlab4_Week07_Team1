@@ -6,14 +6,17 @@ class UFireBallComponent : public UPointLightComponent
 	DECLARE_CLASS(UFireBallComponent, UPointLightComponent)
 
 	REFLECT_START(ClassName)
-	REFLECT_END()
+		PROPERTY(Intensity)
+		PROPERTY(Radius)
+		PROPERTY(RadiusFalloff)
+		PROPERTY_TYPE(LightColor, LinearColor)
+		REFLECT_END()
 
 public:
 	UFireBallComponent();
 	virtual ~UFireBallComponent() override;
 
 	ELightType GetLightType() const { return ELightType::Fireball; }
-	void FillLightData(FLightRenderData& Out) const override;
 
 private:
 };

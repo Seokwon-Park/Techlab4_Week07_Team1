@@ -3,7 +3,7 @@
 
 namespace
 {
-	FBox CalculateAABB(const TArray<FVertexPNCT>& Vertices)
+	FBox CalculateAABB(const TArray<FVertex>& Vertices)
 	{
 		FBox Box;
 
@@ -17,7 +17,7 @@ namespace
 
 		FVector Min{ FLT_MAX, FLT_MAX, FLT_MAX };
 		FVector Max{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
-		for (const FVertexPNCT& Vertex : Vertices)
+		for (const FVertex& Vertex : Vertices)
 		{
 			Min.X = fmin(Min.X, Vertex.Position.X);
 			Min.Y = fmin(Min.Y, Vertex.Position.Y);
@@ -33,9 +33,9 @@ namespace
 		return Box;
 	}
 
-	void CalculateNormals(TArray<FVertexPNCT>& Vertices, const TArray<uint32>& Indices)
+	void CalculateNormals(TArray<FVertex>& Vertices, const TArray<uint32>& Indices)
 	{
-		for (FVertexPNCT& Vertex : Vertices)
+		for (FVertex& Vertex : Vertices)
 		{
 			Vertex.Normal = FVector();
 		}
@@ -59,7 +59,7 @@ namespace
 			Vertices[IndexC].Normal += Normal;
 		}
 
-		for (FVertexPNCT& Vertex : Vertices)
+		for (FVertex& Vertex : Vertices)
 		{
 			Vertex.Normal = Vertex.Normal.Normalized();
 		}
@@ -90,7 +90,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreatePlane(float Size, const FV
 
 	for (int32 i = 0; i < positions.Num(); i++)
 	{
-		PlaneMeshData->Vertices.Add({ positions[i], FVector(0.0f, 0.0f, 0.0f), Color, uvs[i] });
+		PlaneMeshData->Vertices.Add({ positions[i], FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), uvs[i], Color });
 	}
 
 	PlaneMeshData->Indices.Add(0);
@@ -111,10 +111,10 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCone(float Radius, float H
 {
 	TUniquePtr<FStaticMeshData> ConeMeshData = MakeUnique<FStaticMeshData>();
 
-	TArray<FVertexPNCT>& Vertices = ConeMeshData->Vertices;
+	TArray<FVertex>& Vertices = ConeMeshData->Vertices;
 	TArray<uint32>& Indices = ConeMeshData->Indices;
 
-	Vertices.Add({ { 0.0f, 0.0f, Height }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(0.5f, 0.0f) });
+	Vertices.Add({ { 0.0f, 0.0f, Height }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(0.5f, 0.0f), Color });
 
 	float Slice = PI * 2.0f / Segments;
 
@@ -125,7 +125,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCone(float Radius, float H
 		float y = -Radius * sinf(angle);
 		float u = (float)i / Segments;
 
-		Vertices.Add({ { x, y, 0.0f }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(u, 1.0f) });
+		Vertices.Add({ { x, y, 0.0f }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(u, 1.0f), Color });
 	}
 
 	for (int32 i = 0; i < Segments; i++)
@@ -141,7 +141,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCone(float Radius, float H
 	uint32 baseIndex = static_cast<uint32>(Vertices.Num());
 
 	uint32 bottomCenterIdx = baseIndex;
-	Vertices.Add({ { 0.0f, 0.0f, 0.0f }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(0.5f, 0.5f) });
+	Vertices.Add({ { 0.0f, 0.0f, 0.0f }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(0.5f, 0.5f), Color });
 
 	uint32 bottomRingStart = static_cast<uint32>(Vertices.Num());
 	for (int32 i = 0; i <= Segments; i++)
@@ -152,7 +152,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCone(float Radius, float H
 		float u = 0.5f + 0.5f * cosf(angle);
 		float v = 0.5f + 0.5f * sinf(angle);
 
-		Vertices.Add({ { x, y, 0.0f }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(u, v) });
+		Vertices.Add({ { x, y, 0.0f }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(u, v), Color });
 	}
 
 	for (int32 i = 0; i < Segments; i++)
@@ -172,7 +172,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCylinder(float Radius, flo
 {
 	TUniquePtr<FStaticMeshData> CylinderMeshData = MakeUnique<FStaticMeshData>();
 
-	TArray<FVertexPNCT>& Vertices = CylinderMeshData->Vertices;
+	TArray<FVertex>& Vertices = CylinderMeshData->Vertices;
 	TArray<uint32>& Indices = CylinderMeshData->Indices;
 
 	float Slice = PI * 2.0f / Segments;
@@ -185,8 +185,8 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCylinder(float Radius, flo
 		float y = Radius * sinf(angle);
 		float u = (float)i / Segments;
 
-		Vertices.Add({ { x, y, -HalfHeight }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(u, 1.0f) });
-		Vertices.Add({ { x, y,  HalfHeight }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(u, 0.0f) });
+		Vertices.Add({ { x, y, -HalfHeight }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(u, 1.0f), Color });
+		Vertices.Add({ { x, y,  HalfHeight }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(u, 0.0f), Color });
 	}
 
 	for (int32 i = 0; i < Segments; i++)
@@ -203,10 +203,10 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCylinder(float Radius, flo
 	uint32 baseIndex = static_cast<uint32>(Vertices.Num());
 
 	uint32 bottomCenterIdx = baseIndex;
-	Vertices.Add({ { 0.0f, 0.0f, -HalfHeight }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(0.5f, 0.5f) });
+	Vertices.Add({ { 0.0f, 0.0f, -HalfHeight }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(0.5f, 0.5f), Color });
 
 	uint32 topCenterIdx = baseIndex + 1;
-	Vertices.Add({ { 0.0f, 0.0f, HalfHeight }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(0.5f, 0.5f) });
+	Vertices.Add({ { 0.0f, 0.0f, HalfHeight }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(0.5f, 0.5f), Color });
 
 	uint32 bottomRingStart = static_cast<uint32>(Vertices.Num());
 	for (int32 i = 0; i <= Segments; i++)
@@ -217,7 +217,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCylinder(float Radius, flo
 		float u = 0.5f + 0.5f * cosf(angle);
 		float v = 0.5f + 0.5f * sinf(angle);
 
-		Vertices.Add({ { x, y, -HalfHeight }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(u, v) });
+		Vertices.Add({ { x, y, -HalfHeight }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(u, v), Color });
 	}
 
 	uint32 topRingStart = static_cast<uint32>(Vertices.Num());
@@ -229,7 +229,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCylinder(float Radius, flo
 		float u = 0.5f + 0.5f * cosf(angle);
 		float v = 0.5f + 0.5f * sinf(angle);
 
-		Vertices.Add({ { x, y, HalfHeight }, FVector(0.0f, 0.0f, 0.0f), Color, FVector2(u, v) });
+		Vertices.Add({ { x, y, HalfHeight }, FVector(0.0f, 0.0f, 0.0f), FVector4(1.0f, 0.0f, 0.0f, 1.0f), FVector2(u, v), Color });
 	}
 
 	for (int32 i = 0; i < Segments; i++)
@@ -301,7 +301,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateRing(float Radius, float T
 			float cosPhi = cosf(phi);
 			float sinPhi = sinf(phi);
 
-			FVertexPNCT Vertex;
+			FVertex Vertex;
 			Vertex.Position.X = (Radius + TubeRadius * cosPhi) * cosTheta;
 			Vertex.Position.Y = (Radius + TubeRadius * cosPhi) * sinTheta;
 			Vertex.Position.Z = TubeRadius * sinPhi;
@@ -390,7 +390,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateCube(float Size, const FVe
 	{
 		for (int j = 0; j < 4; j++)
 		{
-			FVertexPNCT Vertex;
+			FVertex Vertex;
 			Vertex.Position = positions[cubeFaces[i][j]];
 			Vertex.UV = faceUVs[j];
 			Vertex.Color = FVector4(colors[i], 1.0f);
@@ -431,7 +431,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateSphere(float Radius, uint3
 		{
 			const float Theta = j * SliceStep;
 
-			FVertexPNCT Vertex;
+			FVertex Vertex;
 			Vertex.Position = FVector(r * cosf(Theta), r * sinf(Theta), z);
 			Vertex.UV = FVector2(float(j) / NumSlices, float(i) / NumStacks);
 			Vertex.Color = Color;

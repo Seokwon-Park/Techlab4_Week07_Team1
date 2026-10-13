@@ -13,7 +13,6 @@ public:
 
 	ELightType GetLightType() const { return ELightType::Directional; }
 
-	void FillLightData(FLightRenderData& Out) const override;
 
 private:
 };

@@ -11,7 +11,7 @@ FFogInfo UExponentialHeightFogComponent::GetFogInfo() const
 	FogInfo.StartDistance = StartDistance;
 	FogInfo.FogCutoffDistance = FogCutoffDistance;
 	FogInfo.FogMaxOpacity = FogMaxOpacity;
-	FogInfo.FogColor = FogColor;
+	FogInfo.FogColor = FVector4(FogColor);
 	FogInfo.fogHeight = GetOwner()->GetActorLocation().Z;
 
 	return FogInfo;

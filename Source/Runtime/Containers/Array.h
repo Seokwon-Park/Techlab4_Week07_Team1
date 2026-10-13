@@ -226,9 +226,15 @@ public:
 		Index = Find(Item);
 		return Index != -1;
 	};
+
 	int32 Find(const ElementType& Item) const
 	{
-		return std::find(mDatas.begin(), mDatas.end(), Item) - mDatas.begin();
+		auto It = std::find(mDatas.begin(), mDatas.end(), Item);
+		if (It == mDatas.end())
+		{
+			return -1;
+		}
+		return static_cast<int32>(It - mDatas.begin());
 	}
 
 	int32 Num() const;

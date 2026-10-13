@@ -36,7 +36,7 @@ struct FMeshTriangleElement
 
 struct FStaticMeshData
 {
-	TArray<FVertexPNCT> Vertices;
+	TArray<FVertex> Vertices;
 	TArray<uint32> Indices;
 	TArray<FStaticMeshSection> Sections;
 	TArray<FStaticMaterialSlot> MaterialSlots;

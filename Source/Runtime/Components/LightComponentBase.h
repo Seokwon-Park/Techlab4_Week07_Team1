@@ -10,13 +10,13 @@ class ULightComponentBase : public USceneComponent
 	DECLARE_CLASS(ULightComponentBase, USceneComponent)
 	REFLECT_START(ULightComponentBase)
 		PROPERTY(Intensity)
-		PROPERTY_TYPE(LightColor, Color32)
+		PROPERTY(LightColor)
 		PROPERTY(bVisible)
 	REFLECT_END()
-
 public:
 	ULightComponentBase();
 	virtual ~ULightComponentBase() override;
+
 
 	// Getter
 	float GetIntensity() const { return Intensity; }
@@ -28,9 +28,12 @@ public:
 	void SetLightColor(FColor InLightColor) { LightColor = InLightColor; }
 	void SetVisibility(bool bNewVisibility) { bVisible = bNewVisibility; }
 	
+
+protected:
+	float Intensity = 1.0f;
+	FColor LightColor = FColor(255, 255, 255, 255);
+	bool bVisible = true;
+
 private:
-	float Intensity;
-	FColor LightColor;
-	bool bVisible;
 
 };

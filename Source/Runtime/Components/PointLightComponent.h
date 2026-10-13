@@ -6,23 +6,22 @@ class UPointLightComponent : public ULocalLightComponent
 {
 	DECLARE_CLASS(UPointLightComponent, ULocalLightComponent)
 	REFLECT_START(UPointLightComponent)
+		PROPERTY(AttenuationRadius)
 		PROPERTY(LightFalloffExponent)
 	REFLECT_END()
 public:
 	UPointLightComponent();
 	virtual ~UPointLightComponent() override;
 
-	ELightType GetLightType() const { return ELightType::Point; }
-	
-	// spherical wireframe
-	void DrawDebug(FLineBatcher* LineBatcher) const override;
+	float GetFalloff() const { return LightFalloffExponent; }
+	void SetFalloff(float InFalloff) { LightFalloffExponent = InFalloff; }
 
-	void FillLightData(FLightRenderData& Out) const override;
-
-	float GetLightFalloffExponent() const { return LightFalloffExponent; }
-	void SetLightFalloffExponent(float InLightFalloffExponent) { LightFalloffExponent = InLightFalloffExponent; }
+	float GetAttenuationRadius() const { return AttenuationRadius; }
+	void SetAttenuationRadius(float InRadius) { AttenuationRadius = InRadius; }
 
 protected:
+	float AttenuationRadius = 10.0f;
+	float LightFalloffExponent = 1.0f;
 private:
-	float LightFalloffExponent;
+	
 };

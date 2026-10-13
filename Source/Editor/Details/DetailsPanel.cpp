@@ -612,9 +612,22 @@ namespace
 
 		case EPropertyType::Color:
 		{
+			FColor* C = static_cast<FColor*>(ValuePtr);
+			float V[4] = { C->R / 255.f, C->G / 255.f, C->B / 255.f, C->A / 255.f };
+			if (ImGui::ColorEdit4(Label.c_str(), V))
+			{
+				*C = FColor(uint8(V[0] * 255.f + 0.5f), uint8(V[1] * 255.f + 0.5f),
+					uint8(V[2] * 255.f + 0.5f), uint8(V[3] * 255.f + 0.5f));
+				bChanged = true;
+			}
+			break;
+		}
+
+		case EPropertyType::LinearColor:
+		{
 			// 타입은 Vector4와 같고 위젯만 색상 선택기다
-			FVector4* Value = static_cast<FVector4*>(ValuePtr);
-			bChanged = ImGui::ColorEdit4(Label.c_str(), &Value->X);
+			FLinearColor* Value = static_cast<FLinearColor*>(ValuePtr);
+			bChanged = ImGui::ColorEdit4(Label.c_str(), &Value->R);
 			break;
 		}
 		case EPropertyType::String:
@@ -673,21 +686,6 @@ namespace
 			else if (Property.Class == UStaticMesh::StaticClass())
 			{
 				DrawMeshSlot(Object, reinterpret_cast<UStaticMesh**>(ObjPtr));
-			}
-			break;
-		}
-		case EPropertyType::Color32:
-		{
-			FColor* Value = static_cast<FColor*>(ValuePtr);
-			FVector4 Tmp = Value->ToVector4();
-			if (ImGui::ColorEdit4(Label.c_str(), &Tmp.X))
-			{
-				// 0~1 -> 0~255
-				*Value = FColor(
-					(uint8)(Tmp.X * 255.0f + 0.5f), (uint8)(Tmp.Y * 255.0f + 0.5f),
-					(uint8)(Tmp.Z * 255.0f + 0.5f), (uint8)(Tmp.W * 255.0f + 0.5f)
-				);
-				bChanged = true;
 			}
 			break;
 		}
@@ -775,71 +773,18 @@ namespace
 			ImGui::Text("Component Name:");
 			ImGui::SameLine();
 			ImGui::InputText("##Component Name", ComponentNameInputBuf, sizeof(ComponentNameInputBuf));
-			if (ImGui::MenuItem("StaticMesh Component"))
+			TArray<UClass*> Classes;
+			GetDerivedClasses(UActorComponent::StaticClass(), Classes);
+			// 이름순 정렬하면 메뉴가 안정적
+			for (UClass* Class : Classes)
 			{
-				OutSelectedComponent = Actor->AddComponent(UStaticMeshComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("Text Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(UTextRenderComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("ParticleSubUV Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(UParticleSubUVComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("SkyLight Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(USkyLightComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("DirectionalLight Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(UDirectionalLightComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("SpotLight Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(USpotLightComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("PointLight Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(UPointLightComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("RectLight Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(URectLightComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("Rotating Movememnt Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(URotatingMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("Projectile Movement Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(UProjectileMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
-			}
-			if (ImGui::MenuItem("FireBall Component"))
-			{
-				OutSelectedComponent = Actor->AddComponent(UFireBallComponent::StaticClass(), FString(ComponentNameInputBuf));
-				ComponentNameInputBuf[0] = '\0';
-				ImGui::CloseCurrentPopup();
+				//if (!IsSpawnableComponent(Class)) continue;
+				if (ImGui::MenuItem(Class->Name.c_str()))
+				{
+					OutSelectedComponent = Actor->AddComponent(Class, FString(ComponentNameInputBuf));
+					ComponentNameInputBuf[0] = '\0';
+					ImGui::CloseCurrentPopup();
+				}
 			}
 			ImGui::EndPopup();
 		}

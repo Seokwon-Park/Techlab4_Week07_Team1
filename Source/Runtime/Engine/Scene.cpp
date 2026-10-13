@@ -1,5 +1,8 @@
 ﻿#include "EnginePCH.h"
 #include "Scene.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
 
 void FScene::AddPrimitive(UPrimitiveComponent* Component)
 {
@@ -69,6 +72,96 @@ void FScene::RemoveAllPrimitives()
 	RenderStateDirtyProxies.Reset();
 	BVH.Clear();
 	bElementListChanged = true;
+}
+
+void FScene::AddLight(ULightComponent* Component)
+{
+	if (!Component) return;
+	if (LightComponents.Find(Component) != INDEX_NONE) return;
+	LightComponents.Add(Component);
+}
+
+void FScene::RemoveLight(ULightComponent* Component)
+{
+	const int32 Index = LightComponents.Find(Component);
+	if (Index != INDEX_NONE)
+		LightComponents.RemoveAtSwap(Index);
+}
+
+void FScene::RemoveAllLights()
+{
+	LightComponents.Reset();
+}
+
+// 등록된 라이트를 셰이더용 상수로 모아 Renderer에 올린다. 컴포넌트 값을 매 프레임 직접 읽으므로 별도 갱신 경로가 필요 없다.
+void FScene::UpdateLights(FRenderer* Renderer)
+{
+	if (!Renderer)
+		return;
+
+	FLightingConstants Constants{};
+
+	// 앰비언트 컴포넌트가 생기기 전까지는 고정값을 쓴다.
+	Constants.Ambient.Color = FVector(1.0f, 1.0f, 1.0f);
+	Constants.Ambient.Intensity = 0.1f;
+
+	bool bHasDirectional = false;
+	Constants.NumPointLights = 0;
+	Constants.NumSpotLights = 0;
+	for (ULightComponent* Light : LightComponents)
+	{
+		if (!Light || !Light->IsVisible())
+			continue;
+
+		if (UDirectionalLightComponent* Directional = Cast<UDirectionalLightComponent>(Light))
+		{
+			// 셰이더는 한 개만 받으므로 첫 번째 Directional만 쓴다.
+			if (bHasDirectional)
+				continue;
+			bHasDirectional = true;
+
+			FTransform Transform;
+			Transform.Rotation = Directional->GetWorldRotation();
+			const FLinearColor Color(Directional->GetLightColor());
+
+			Constants.Directional.Direction = Transform.GetForward();
+			Constants.Directional.Color = FVector(Color.R, Color.G, Color.B);
+			Constants.Directional.Intensity = Directional->GetIntensity();
+		}
+		else if (USpotLightComponent* Spot = Cast<USpotLightComponent>(Light))
+		{
+			FTransform Transform;
+			Transform.Rotation = Spot->GetWorldRotation();
+			const FLinearColor Color(Spot->GetLightColor());
+
+			Constants.SpotLights[Constants.NumSpotLights].Color = FVector(Color.R, Color.G, Color.B);
+			Constants.SpotLights[Constants.NumSpotLights].Direction = Transform.GetForward();
+			Constants.SpotLights[Constants.NumSpotLights].FalloffExponent = Spot->GetFalloff();
+			Constants.SpotLights[Constants.NumSpotLights].Intensity = Spot->GetIntensity();
+			Constants.SpotLights[Constants.NumSpotLights].Position = Spot->GetWorldLocation();
+			Constants.SpotLights[Constants.NumSpotLights].Radius = Spot->GetAttenuationRadius();
+			const float SafeOuterAngle = FMath::Clamp(Spot->GetOuterConeAngle(), 0.0f, 89.0f);
+			const float SafeInnerAngle = FMath::Clamp(Spot->GetInnerConeAngle(), 0.0f, SafeOuterAngle);
+			Constants.SpotLights[Constants.NumSpotLights].InnerConeCos = std::cos(FMath::DegreesToRadians(SafeInnerAngle));
+			Constants.SpotLights[Constants.NumSpotLights].OuterConeCos = std::cos(FMath::DegreesToRadians(SafeOuterAngle));
+			Constants.NumSpotLights++;
+		}
+		else if (UPointLightComponent* Point = Cast<UPointLightComponent>(Light))
+		{
+			FTransform Transform;
+			const FLinearColor Color(Point->GetLightColor());
+
+			Constants.PointLights[Constants.NumPointLights].Color = FVector(Color.R, Color.G, Color.B);
+			Constants.PointLights[Constants.NumPointLights].FalloffExponent = Point->GetFalloff();
+			Constants.PointLights[Constants.NumPointLights].Intensity = Point->GetIntensity();
+			Constants.PointLights[Constants.NumPointLights].Position = Point->GetWorldLocation();
+			Constants.PointLights[Constants.NumPointLights].Radius = Point->GetAttenuationRadius();
+			Constants.NumPointLights++;
+		}
+
+	}
+
+	Renderer->SetLighting(Constants);
 }
 
 void FScene::AddFogInfo(uint32 Id, const FFogInfo& FogInfo)
@@ -143,7 +236,7 @@ void FScene::UpdateAllTransforms()
 		PrimitiveFlags[Proxy->PackedIndex] = Proxy->GetComponent()->IsVisible() ? 1 : 0;
 		Proxy->bQueuedForUpdate = false;
 	}
-	
+
 	//const int32 Count = Proxies.Num();
 	//for (int32 i = 0; i < Count; ++i)
 	//{
@@ -162,7 +255,7 @@ void FScene::UpdateAllTransforms()
 
 	const bool bAnyMoved = DirtyProxies.Num() > 0;
 	DirtyProxies.Reset();
-	
+
 
 	if (bElementListChanged)
 	{

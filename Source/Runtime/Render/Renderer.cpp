@@ -63,8 +63,8 @@ bool FRenderer::Init()
 	bUsePerObjectSlots = RenderCommand::SupportsConstantBufferOffsets();
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
-	LightCB = RenderCommand::CreateConstantBuffer(sizeof(FLightConstants));
-	ViewParamsCB = RenderCommand::CreateConstantBuffer(sizeof(FVector4));
+	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
+	LightingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightingConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -120,7 +120,8 @@ void FRenderer::UploadPerObjectConstants()
 	{
 		FRenderPacket& P = RenderPackets[Index];
 		const FMatrix& Model = GetPacketWorld(P);
-		std::memcpy(Dest + static_cast<size_t>(Index) * ObjectSlotBytes, &Model, sizeof(FMatrix));
+		const FMatrix WorldToLocal = P.Proxy ? P.Proxy->GetWorldToLocal() : Model.Inverse();
+		WritePerObjectConstants(Dest + static_cast<size_t>(Index) * ObjectSlotBytes, Model, WorldToLocal);
 		P.Slot = Index;
 	}
 
@@ -143,7 +144,8 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(3, LightCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
 
 	DrawStaticGroups();
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
@@ -152,7 +154,8 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 // RenderOpaque가 남긴 반투명 패킷을 먼 것부터 그린다.
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(3, LightCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -457,23 +460,6 @@ void FRenderer::EndObjectConstants()
 	}
 }
 
-FShaderProgram* FRenderer::ResolveShader(UMaterial* Material)
-{
-	if (!StaticMeshShaders[0])
-	{
-		const char* Names[3] = { "_GOURAUD", "_LAMBERT", "_BLINNPHONG" };
-		for (int i = 0; i < 3; ++i)
-			StaticMeshShaders[i] = FRenderResourceManager::GetShaderProgram(
-				FString("Resources/Shader/StaticMeshShader.hlsl") + Names[i]);
-	}
-
-	for (FShaderProgram* S : StaticMeshShaders)
-		if (Material->Shader == S)
-			return StaticMeshShaders[(int)LightingModel]; // 현재 모드의 변형으로 교체
-	return Material->Shader;
-
-}
-
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
@@ -542,6 +528,7 @@ void FRenderer::UpdatePerObjectConstants(const FMatrix& World)
 	FPerObjectConstants Constants;
 
 	Constants.World = World;
+	Constants.NormalMatrix = World.Inverse().GetTransposed();
 
 	RenderCommand::UpdateBufferData(PerObjectCB.get(), &Constants);
 }
@@ -552,9 +539,9 @@ void FRenderer::SetLights(const FLightConstants& LightData)
 	RenderCommand::UpdateBufferData(LightCB.get(), &LightConstantsData, sizeof(FLightConstants));
 }
 
-void FRenderer::SetViewParams(const FVector& CameraPosition)
+
+
+void FRenderer::SetLighting(const FLightingConstants& LightingConstants)
 {
-	const FVector4 Data(CameraPosition.X, CameraPosition.Y, CameraPosition.Z, 0.0f);
-	RenderCommand::UpdateBufferData(ViewParamsCB.get(), &Data, sizeof(FVector4));
-	RenderCommand::BindConstantBuffer(4, ViewParamsCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
+	RenderCommand::UpdateBufferData(LightingCB.get(), &LightingConstants, sizeof(FLightingConstants));
 }

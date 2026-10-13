@@ -11,7 +11,6 @@ class USpotLightComponent : public UPointLightComponent
 	REFLECT_START(ClassName)
 		PROPERTY(InnerConeAngle)
 		PROPERTY(OuterConeAngle)
-		PROPERTY(Falloff)
 	REFLECT_END()
 
 public:
@@ -28,14 +27,10 @@ public:
 	float GetOuterConeAngle() const { return OuterConeAngle; }
 	void SetOuterConeAngle(float InAngle) { OuterConeAngle = InAngle; }
 
-	float GetFalloff() const { return Falloff; }
-	void SetFallOff(float InFalloff) { Falloff = InFalloff; }
+	
 
 private:
 	// 원뿔 중심축 기준 반각(도). 
 	float InnerConeAngle = 15.0f;
 	float OuterConeAngle = 30.0f;
-
-	// Inner에서 Outer로 가며 밝기가 떨어지는 정도.
-	float Falloff = 1.0f;
 };

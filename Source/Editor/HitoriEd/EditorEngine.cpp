@@ -413,7 +413,8 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			// Light 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
+			// FireBall 라이트 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
+			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateLights(Renderer);
 			CapturedWorld = ViewWorld;
 		}
@@ -444,6 +445,7 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
+			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateLights(Renderer);
 			CapturedWorld = ViewWorld;
 		}
