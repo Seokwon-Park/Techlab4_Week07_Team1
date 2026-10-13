@@ -420,7 +420,7 @@ void UEditorEngine::RenderMultipleViewports()
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_BuildRenderQueue);
-			MultipleViewportsAdapter.BuildRenderQueue(ViewIndex, RenderQueue, IconQueue);
+			MultipleViewportsAdapter.BuildRenderQueue(ViewIndex, RenderQueue, IconQueue, ArrowQueue);
 		}
 
 		RenderFrame(
@@ -430,7 +430,7 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineViewProjection(ViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraLocation(ViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraForward(ViewIndex),
-			RenderQueue, IconQueue);
+			RenderQueue, IconQueue, ArrowQueue);
 
 
 
@@ -460,7 +460,7 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineViewProjection(PIEViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraLocation(PIEViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraForward(PIEViewIndex),
-			RenderQueue, IconQueue);
+			RenderQueue, IconQueue, ArrowQueue);
 		CopyPIEWindowToBackbuffer();
 	}
 
@@ -614,7 +614,7 @@ void UEditorEngine::RenderFogPass(const int32 ViewIndex, UWorld& ViewWorld, cons
 	RenderCommand::EndRenderPass(PassInfo);
 }
 
-void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue, FRenderQueue& IconQueue)
+void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue, FRenderQueue& IconQueue, FRenderQueue& ArrowQueue)
 {
 	// 실행 중인 PIE View에는 Grid·Gizmo·Outline 같은 에디터 표시를 그리지 않는다.
 	// 별도 PIE 창은 편집 입력이 없으므로 일시정지 중에도 게임 화면만 보인다.
@@ -682,11 +682,19 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 	}
 
 	// Editor Icon (안개, Light Actor)
-	if (bShowEditorOverlay && SettingsPanel->GetSettings().bDrawBatchLine)
+	if (bShowEditorOverlay)
 	{
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		Renderer->RenderQueueSorting(IconQueue, ViewProjection);
+		Renderer->RenderTranslucent(ViewProjection);
+	}
+
+	if (bShowEditorOverlay)
+	{
+		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		Renderer->RenderQueueSorting(ArrowQueue, ViewProjection);
 		Renderer->RenderTranslucent(ViewProjection);
 	}
 
@@ -863,7 +871,7 @@ void UEditorEngine::UpdateGizmoAndPicking()
 }
 
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
-void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue, FRenderQueue& IconQueue)
+void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue, FRenderQueue& IconQueue, FRenderQueue& ArrowQueue)
 {
 
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
@@ -886,7 +894,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	}
 
 	// 4. 오버레이 Pass
-	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue, IconQueue);
+	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue, IconQueue, ArrowQueue);
 
 }
 

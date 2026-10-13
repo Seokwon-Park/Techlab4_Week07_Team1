@@ -655,10 +655,12 @@ std::size_t FMultipleViewportsAdapter::GetVisibleObjectCount(const int32 ViewInd
 }
 
 // 가시 ID를 컴포넌트로 역매핑해 큐를 구성한다. 생존 목록·상수는 프레임 공통, Billboard·정렬 거리는 View별이다.
-void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQueue& OutQueue, FRenderQueue& OutIconQueue)
+void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQueue& OutQueue, FRenderQueue& OutIconQueue, FRenderQueue& OutArrowQueue)
 {
     OutQueue.Reset();
     OutIconQueue.Reset();
+    OutArrowQueue.Reset();
+    
     PendingStaticMeshes.Reset();
     LODInputs.Reset();
     if (!IsViewActive(ViewIndex)) return;
@@ -740,6 +742,10 @@ void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQ
             if (!Mesh)
                 continue;
 
+            // 빛 방향 Arrow 이면 ArrowQueue로 빼기
+            FRenderQueue& Target = StaticComponent->IsEditorIcon()? OutArrowQueue : OutQueue;
+            StaticComponent->SubmitToRenderQueue(Target);
+            
             const FPrimitiveSceneProxy* Proxy = StaticComponent->GetSceneProxy();
             if (Proxy)
             {

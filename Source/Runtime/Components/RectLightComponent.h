@@ -28,4 +28,7 @@ private:
 	float SourceWidth;
 	// 발광면 세로 크기
 	float SourceHeight;
+
+	float BarnDoorAngle;
+	float BarnDoorLength;
 };
