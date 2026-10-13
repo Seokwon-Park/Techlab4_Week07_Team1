@@ -681,21 +681,20 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		}
 	}
 
-	// Editor Icon (안개, Light Actor)
+	// Editor Icon (안개, Light Actor) + 빛 방향 Arrow
 	if (bShowEditorOverlay)
 	{
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// 아이콘 먼저 그리기 (반투명)
 		Renderer->RenderQueueSorting(IconQueue, ViewProjection);
 		Renderer->RenderTranslucent(ViewProjection);
-	}
-
-	if (bShowEditorOverlay)
-	{
-		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		
+		// 화살표 그리기 (불투명)
 		Renderer->RenderQueueSorting(ArrowQueue, ViewProjection);
-		Renderer->RenderTranslucent(ViewProjection);
+		Renderer->RenderOpaque(ViewProjection);
+		Renderer->RenderTranslucent(ViewProjection);	// 패킷 뒷정리
 	}
 
 	// TextRenderComponent 렌더링
