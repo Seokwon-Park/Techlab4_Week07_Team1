@@ -7,9 +7,6 @@ class UFireBallComponent : public UPointLightComponent
 
 	REFLECT_START(ClassName)
 		PROPERTY(Intensity)
-		PROPERTY(Radius)
-		PROPERTY(RadiusFalloff)
-		PROPERTY_TYPE(LightColor, LinearColor)
 		REFLECT_END()
 
 public:

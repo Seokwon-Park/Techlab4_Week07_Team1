@@ -3,7 +3,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
-#include "Components/FireBallComponent.h"
 #include "Components/LightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
@@ -65,7 +64,7 @@ public:
 	};
 	bool bElementListChanged = false;
 	
-	TArray<UFireBallComponent*> FireBallComponents;
+	// TArray<UFireBallComponent*> FireBallComponents;
 
 	TArray<ULightComponent*> LightComponents;
 

@@ -161,7 +161,7 @@ public:
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
 
-	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	// void SetFireBallLight(const FFireBallLightConstants& LightConstants);
 	void SetLighting(const FLightingConstants& LightingConstants);
 
 private:
@@ -201,8 +201,8 @@ private:
 
 	TArray<FSortEntry> SortEntries;
 
-	TUniquePtr<FConstantBuffer> FireBallLightCB;
-	FFireBallLightConstants FireBallLightData{};
+	// TUniquePtr<FConstantBuffer> FireBallLightCB;
+	// FFireBallLightConstants FireBallLightData{};
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;
