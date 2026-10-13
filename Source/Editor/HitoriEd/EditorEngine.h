@@ -13,6 +13,7 @@
 #include "Render/LineBatcher.h"
 #include "Render/FogRenderer.h"
 #include "Render/FXAARenderer.h"
+#include "Render/ToneMapRenderer.h"
 #include "Render/DepthViewRenderer.h"
 
 
@@ -115,6 +116,8 @@ private:
 	void RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
 	//Normal Pass
 	void RenderNormalPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
+	//ToneMap Pass
+	void RenderToneMapPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo);
 
 	//Icon Pass
 	void RenderIconPass(int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderIconQueue, FRenderQueue& ArrowQueue);
@@ -145,6 +148,7 @@ private:
 	TUniquePtr<FOutlineRenderer> OutlineRenderer;
 	TUniquePtr<FSkyboxRenderer> SkyboxRenderer;
 	TUniquePtr<FFXAARenderer> FXAARenderer;
+	TUniquePtr<FToneMapRenderer> ToneMapRenderer;
 	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
 
 	UFont* SystemFont;

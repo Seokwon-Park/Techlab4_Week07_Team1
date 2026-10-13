@@ -112,6 +112,9 @@ bool UEditorEngine::Init()
 	DepthViewRenderer = MakeUnique<FDepthViewRenderer>();
 	DepthViewRenderer->Init();
 
+	ToneMapRenderer = MakeUnique<FToneMapRenderer>();
+	ToneMapRenderer->Init();
+
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
@@ -815,6 +818,32 @@ void UEditorEngine::RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& 
 	RenderCommand::CopyTexture(SceneColor, FxaaTarget);
 }
 
+void UEditorEngine::RenderToneMapPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo)
+{
+	FTexture2D* LDRColor = ViewRenderingInfo.ColorRenderTargets[0].Texture;
+	FTexture2D* HDRColor = GetHDRTargetForView(ViewIndex);   // 뷰별 임시 텍스처
+	if (!LDRColor || !HDRColor)
+		return;
+
+	// 출력은 임시 텍스처, 깊이 없음, 어차피 전부 덮어쓰니 Clear 불필요
+	FRenderingInfo PassInfo;
+	PassInfo.ViewportSetting = ViewRenderingInfo.ViewportSetting;
+
+	FRenderingDesc ColorDesc{};
+	ColorDesc.Texture = LDRColor;
+	ColorDesc.LoadOp = ERenderTargetLoadOp::DontCare;
+	PassInfo.ColorRenderTargets.Add(ColorDesc);
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	//장면 텍스처를 읽어서 임시 텍스처에 ToneMap 결과를 그린다
+	RenderCommand::BeginRenderPass(PassInfo);
+	ToneMapRenderer->OnRender(HDRColor);
+	RenderCommand::EndRenderPass(PassInfo);
+
+	// SceneColor가 SRV로 남아 있으면 Overlay 패스에서 RTV로 쓸 때 D3D가 강제로 해제하므로 먼저 비운다
+	RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
+}
+
 void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward)
 {
 	FRenderingInfo PassInfo = ViewRenderingInfo;
@@ -876,7 +905,6 @@ void UEditorEngine::UpdateGizmoAndPicking()
 		MultipleViewportsAdapter.PickActiveView(LocalMousePosition, *ViewWorld);
 		MultipleViewportsAdapter.ApplyLastPickToOutliner(*OutlinerPanel);
 	}
-
 }
 
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
@@ -896,6 +924,9 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 		if (!MultipleViewportsAdapter.IsOrthographic(ViewIndex) && SettingsPanel->GetSettings().bExponentialHeightFog)
 			// 2. 안개 Pass
 			RenderFogPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+
+		// 3. ToneMap(HDR) Pass
+		RenderToneMapPass(ViewIndex, ViewRenderingInfo);
 
 		// 3. FXAA Pass
 		if (SettingsPanel->GetSettings().bEnableFXAA)
