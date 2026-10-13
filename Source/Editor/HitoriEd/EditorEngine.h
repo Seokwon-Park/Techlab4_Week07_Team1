@@ -98,6 +98,8 @@ private:
 	bool IsPIEInWindow() const { return PIEWindow != nullptr; }
 	// View별 FXAA 임시 텍스처. 외부 View는 PIE 창 타깃을 쓴다.
 	FTexture2D* GetFxaaTargetForView(int32 ViewIndex) const;
+	// View별 HDR 임시 텍스처. 외부 View는 PIE 창 타깃을 쓴다.
+	FTexture2D* GetHDRTargetForView(int32 ViewIndex) const;
 	// 화면 합성과 View 설정 보관으로 프레임을 마무리한다.
 	void EndFrame();
 
@@ -174,6 +176,7 @@ private:
 	TUniquePtr<FTexture2D> PIEColorTarget;
 	TUniquePtr<FTexture2D> PIEDepthTarget;
 	TUniquePtr<FTexture2D> PIEFxaaTarget;
+	TUniquePtr<FTexture2D> PIEHDRTarget;
 	FRenderingInfo PIERenderingInfo{};
 	uint32 PIETargetWidth = 0;
 	uint32 PIETargetHeight = 0;

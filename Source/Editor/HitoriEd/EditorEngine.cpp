@@ -551,7 +551,9 @@ FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
-	RenderCommand::BeginRenderPass(ViewRenderingInfo);
+	FRenderingInfo HDRInfo = ViewRenderingInfo;
+	HDRInfo.ColorRenderTargets[0].Texture = GetHDRTargetForView(ViewIndex);
+	RenderCommand::BeginRenderPass(HDRInfo);
 
 	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
@@ -574,8 +576,8 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		Renderer->CullLights(
 			MultipleViewportsAdapter.GetEngineView(ViewIndex),
 			MultipleViewportsAdapter.GetEngineProjection(ViewIndex),
-			ViewRenderingInfo.ViewportSetting.Width,
-			ViewRenderingInfo.ViewportSetting.Height);
+			HDRInfo.ViewportSetting.Width,
+			HDRInfo.ViewportSetting.Height);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
@@ -594,18 +596,19 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 
 
 
-	RenderCommand::EndRenderPass(ViewRenderingInfo);
+	RenderCommand::EndRenderPass(HDRInfo);
 }
 
 void UEditorEngine::RenderFogPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation, const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
 {
-
+	FRenderingInfo HDRInfo = ViewRenderingInfo;
+	HDRInfo.ColorRenderTargets[0].Texture = GetHDRTargetForView(ViewIndex);
 	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = ViewWorld.GetScene().FogInfos;
 
 	if (SceneFogInfos.Num() == 0)
 		return;
 
-	FRenderingInfo PassInfo = ViewRenderingInfo;
+	FRenderingInfo PassInfo = HDRInfo;
 
 	//Load는 기존 내용을 그대로 두고 그 위에 그림을 그린다는뜻
 	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
@@ -614,7 +617,7 @@ void UEditorEngine::RenderFogPass(const int32 ViewIndex, UWorld& ViewWorld, cons
 	PassInfo.DepthStencil.Texture = nullptr;
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
+	FogRenderer->OnRender(HDRInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
 
 	//Fog는 여러개있더라도 1개의 Fog만 인식해서 그리도록 해야한다.
 
