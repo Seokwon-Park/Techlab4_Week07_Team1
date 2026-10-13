@@ -29,10 +29,10 @@ void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     const FVector C2 = Center - Right * HW - Up * HH;
     const FVector C3 = Center + Right * HW - Up * HH;
 
-    const FVector4 Color = GetLightColor().ToVector4();
+    const FVector4 Color = FColor(255.0f, 255.0f, 255.0f, 255.0f).ToVector4();
 
     // Door은 흐리게
-	const FColor DoorFColor(GetLightColor().R * 0.5f, GetLightColor().G * 0.5f, GetLightColor().B * 0.5f, GetLightColor().A);
+	const FColor DoorFColor(127.5f, 127.5f, 127.5f, 127.5f);
 	const FVector4 DoorColor = DoorFColor.ToVector4();
 
     // 개구부 사각형: 앞으로 F만큼 나가고, 사방으로 S만큼 벌어진다
