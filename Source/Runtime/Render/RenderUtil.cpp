@@ -14,6 +14,10 @@ FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, 
 
 	std::wstring WPath(Path.begin(), Path.end());
 
+	//for (const auto& D : Defines)
+	//	Macros.push_back({ D.first.c_str(), D.second.c_str() });
+	//Macros.push_back({ nullptr, nullptr });		// 끝 표시
+
 	ComPtr<ID3DBlob> ErrorBlob;
 	HRESULT hr = D3DCompileFromFile(WPath.c_str(), Macros, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint, Target, Flags, 0, ByteCode.Blob.GetAddressOf(), ErrorBlob.GetAddressOf());
 

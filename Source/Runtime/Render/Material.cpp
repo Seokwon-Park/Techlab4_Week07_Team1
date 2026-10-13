@@ -82,6 +82,7 @@ json UMaterial::SaveMaterial(const UMaterial* Material)
 	const UMaterial* Base = Material->GetBaseAsset();
 	Out["Base"] = Base ? Base->GetPath() : FString("DefaultMaterial");
 	Out["BaseColor"] = Material->BaseColor;
+	Out["Shininess"] = Material->Shininess;
 	Out["UVScrollSpeed"] = {
 		Material->UVScrollSpeed.X,
 		Material->UVScrollSpeed.Y
@@ -129,6 +130,11 @@ UMaterial* UMaterial::LoadMaterial(const json& In)
 	if (In.contains("BaseColor"))
 	{
 		In["BaseColor"].get_to(Instance->BaseColor);
+	}
+
+	if (In.contains("Shininess"))
+	{
+		In["Shininess"].get_to(Instance->Shininess);
 	}
 
 	if (In.contains("Textures"))
@@ -219,9 +225,9 @@ void UMaterial::Serialize(FStructuredArchive::FRecord Record)
 
 	FArchive& Ar = Record.GetUnderlyingArchive();
 
-	Record << SA_VALUE("BaseColor", BaseColor)
-		<< SA_VALUE("UVScrollSpeed", UVScrollSpeed)
-		<< SA_VALUE("Shininess", Shininess);	// 예전 씬에 없으면 기본값(32)을 유지한다
+	Record 	<< SA_VALUE("BaseColor", BaseColor)
+			<< SA_VALUE("Shininess", Shininess)
+			<< SA_VALUE("UVScrollSpeed", UVScrollSpeed);
 
 	// enum은 이름 문자열로 (UE 텍스트 포맷도 enum을 이름으로 쓴다)
 	FString Sampler = SamplerState == ESamplerState::LinearWrap ? "LinearWrap" : "LinearClamp";

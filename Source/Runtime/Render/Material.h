@@ -41,9 +41,8 @@ public:
 	ESamplerState SamplerState = ESamplerState::LinearClamp;
 
 	FVector4 BaseColor = FVector4(1, 1, 1, 1);
+	float Shininess = 32.0f; // Blinn-Phong Specular의 pow 지수
 	FVector2 UVScrollSpeed = FVector2(0.0f, 0.0f);
-	// Blinn-Phong Specular의 pow 지수
-	float Shininess = 32.0f;
 
 	bool bIsInstance = false;
 

@@ -11,6 +11,7 @@ public:
 	UDirectionalLightComponent();
 	virtual ~UDirectionalLightComponent() override;
 
+	ELightType GetLightType() const override { return ELightType::Directional; }
 
 
 private:

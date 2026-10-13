@@ -6,10 +6,15 @@ class ULocalLightComponent :public ULightComponent
 {
 	DECLARE_CLASS(ULocalLightComponent, ULightComponent)
 	REFLECT_START(ULocalLightComponent)
+		PROPERTY(AttenuationRadius)
 	REFLECT_END()
 public:
 	ULocalLightComponent();
 	virtual ~ULocalLightComponent() override;
 
+	float GetAttenuationRadius() const { return AttenuationRadius; }
+	void SetAttenuationRadius(float InAttenuationRadius) { AttenuationRadius = InAttenuationRadius; }
+
 private:
+	float AttenuationRadius = 10.0f;
 };

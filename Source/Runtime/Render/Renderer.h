@@ -7,9 +7,10 @@
 #include "RenderingInfo.h"
 #include "ViewMode.h"
 #include "Occlusion/GPUOcclusion.h"
+#include "RenderEnums.h"
+#include "Material.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
-constexpr uint32 MaxFireBalls = 16;
 
 struct FPerObjectConstants
 {
@@ -72,8 +73,8 @@ struct FSpotLightInfo
 	FVector Direction;
 	float InnerConeCos;
 	float FalloffExponent;
-	float Padding[2];
 	float OuterConeCos;
+	float Padding[2];
 };
 
 struct FRectLightInfo
@@ -134,21 +135,6 @@ struct FOcclusionMeasureResult
 	uint32 GPUOccludedDraws = 0;  // GPU가 가렸다고 판정한 드로우 수
 	uint32 FalseCulls = 0;        // 그중 실제로는 픽셀이 보인 드로우 수. 0이어야 한다
 };
-
-struct alignas(16) FFireBallLight
-{
-	FVector4 PositionRadius; // xyz: 위치, w: 반경
-	FVector4 ColorIntensity; // rgb: 색상, w: 강도
-	FVector4 FalloffEnabled; // x: 반경 감쇠, y: 사용 여부, zw: 패딩
-};
-
-struct alignas(16) FFireBallLightConstants
-{
-	FFireBallLight Light[MaxFireBalls];
-	uint32 LightCount;
-	uint32 Padding[3] = {};
-};
-
 class FRenderer
 {
 public:
@@ -186,7 +172,7 @@ public:
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
 
-	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	// void SetFireBallLight(const FFireBallLightConstants& LightConstants);
 	void SetLighting(const FLightingConstants& LightingConstants);
 
 	// 이후 그리는 UberLit 머티리얼이 쓸 조명 모델. View마다 RenderOpaque 전에 설정한다.
@@ -230,8 +216,8 @@ private:
 
 	TArray<FSortEntry> SortEntries;
 
-	TUniquePtr<FConstantBuffer> FireBallLightCB;
-	FFireBallLightConstants FireBallLightData{};
+	// TUniquePtr<FConstantBuffer> FireBallLightCB;
+	// FFireBallLightConstants FireBallLightData{};
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;

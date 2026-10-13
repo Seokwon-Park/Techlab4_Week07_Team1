@@ -8,6 +8,11 @@
 #include "Components/TextRenderComponent.h"
 #include "Components/ParticleSubUVComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/RectLightComponent.h"
+#include "Components/SkyLightComponent.h"
+
 #include "Components/RotatingMovementComponent.h"
 #include "Components/ProjectileMovementComponent.h"
 #include "Components/FireBallComponent.h"
@@ -450,7 +455,26 @@ namespace
 					}
 
 					ImGui::TableNextRow();
+					
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Text("Shininess");
+					
+					ImGui::TableSetColumnIndex(1);
+					ImGui::SetNextItemWidth(-1.0f);
+					
+					float TempShininess =Effective ? Effective->Shininess : 32.0f;
+					if (ImGui::DragFloat("##Shininess", &TempShininess, 0.5f, 1.0f, 256.0f))
+					{
+						Override = EnsureMaterialOverride(MeshComponent, Slot, Effective, Override);
+						if (Override)
+						{
+							Override->Shininess = TempShininess;
+							Effective = Override;
+						}
+					}
 
+					ImGui::TableNextRow();
+					
 					// 4: UV Scroll Speed
 					ImGui::TableSetColumnIndex(0);
 					ImGui::Text("UV Scroll");
@@ -465,26 +489,6 @@ namespace
 						if (Override)
 						{
 							Override->UVScrollSpeed = TempUVScrollSpeed;
-							Effective = Override;
-						}
-					}
-
-					ImGui::TableNextRow();
-
-					// Shininess (Blinn-Phong 광택 지수)
-					ImGui::TableSetColumnIndex(0);
-					ImGui::Text("Shininess");
-
-					ImGui::TableSetColumnIndex(1);
-					ImGui::SetNextItemWidth(-1.0f);
-
-					float TempShininess = Effective ? Effective->Shininess : 32.0f;
-					if (ImGui::DragFloat("##Shininess", &TempShininess, 0.5f, 1.0f, 1024.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp))
-					{
-						Override = EnsureMaterialOverride(MeshComponent, Slot, Effective, Override);
-						if (Override)
-						{
-							Override->Shininess = TempShininess;
 							Effective = Override;
 						}
 					}

@@ -68,10 +68,14 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	if (QuadMesh == nullptr || Material == nullptr)
 		return;
 
+	// Light Component light 가져와서 IconParams로 전달
+	IconParams.Tint = TintSource ? TintSource->GetLightColor().ToVector4() : FVector4(1, 1, 1, 1);
 	FRenderPacket Packet;
 	Packet.Mesh = QuadMesh;
 	Packet.Material = Material;
 	Packet.Model = RenderQueue.StoreWorldMatrix(BillboardWorldMatrix);
+	Packet.MaterialParamData = &IconParams;
+	Packet.MaterialParamDataSize = sizeof(FSubUVConstants);
 	RenderQueue.Add(Packet);
 }
 

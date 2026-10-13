@@ -46,8 +46,8 @@ struct FSpotLightInfo
     float3 Direction;
     float InnerConeCos;
     float FalloffExponent;
-    float2 Padding;
     float OuterConeCos;
+    float2 Padding;
 };
 
 struct FRectLightInfo
@@ -149,15 +149,16 @@ float SpotConeFactor(FSpotLightInfo S, float3 L)
 // Diffuse와 Specular를 구한다. Radiance = Color * Intensity * Falloff (* ConeFactor)
 FLightContribution ShadeLight(float3 N, float3 L, float3 V, float3 Radiance, float InShininess)
 {
+    float3 NDotL = saturate(dot(normalize(N), normalize(L)));
     FLightContribution Contribution = (FLightContribution)0;
-    Contribution.Diffuse = saturate(dot(normalize(N), normalize(L)));
+    Contribution.Diffuse = NDotL;
 
 #if LIGHTING_MODEL_BLINN_PHONG
     // Blinn Specular
     float3 H = normalize(L + V);
     if (dot(N, L) > 0)
     {
-        Contribution.Specular = pow(saturate(max(0, dot(N, H))), max(InShininess, 1.f));
+        Contribution.Specular = pow(saturate(dot(normalize(N), H)), max(InShininess, 1.f));
     }
 #endif
     Contribution.Diffuse *= Radiance;
@@ -185,8 +186,6 @@ FLightContribution CalcPoint(FPointLightInfo P, float3 N, float3 V, float3 World
     float Attenuation = LocalLightAttenuation(P.Position, P.Radius, P.FalloffExponent, WorldPos, L);
     float3 Radiance = P.Color * P.Intensity * Attenuation;
     return ShadeLight(N, L, V, Radiance, InShininess);
-    
-    //return P.Color * P.Intensity * Attenuation * (Contribution.Diffuse + Contribution.Specular);
 }
 
 // Spot은 Point에서 ConeFactor만 곱하면 된다
@@ -196,9 +195,6 @@ FLightContribution CalcSpot(FSpotLightInfo S, float3 N, float3 V, float3 WorldPo
     float Attenuation = LocalLightAttenuation(S.Position, S.Radius, S.FalloffExponent, WorldPos, L);
     float3 Radiance = S.Color * S.Intensity * Attenuation * SpotConeFactor(S, L);
     return ShadeLight(N, L, V, Radiance, InShininess);
-    
-    //float3 PointLight = S.Color * S.Intensity * Attenuation * (Contribution.Diffuse + Contribution.Specular);
-    //return PointLight * SpotConeFactor(S, L);
 }
 
 //float3 CalcRect(FRectLightInfo R, float3 N, float3 WorldPos)
@@ -284,7 +280,7 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
     float3 Lighting = CalcAmbient();
     float3 Specular = 0.f;
     
-    #if LIGHTING_MODEL_LAMBERT | LIGHTING_MODEL_BLINN_PHONG
+    #if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG)
         float3 V = normalize(CameraWorldPos - Input.worldPos);
         FLightContribution Contribution = CalcLighting(N, V, Input.worldPos, Shininess);
         Lighting += Contribution.Diffuse;
