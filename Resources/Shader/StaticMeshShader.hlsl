@@ -43,6 +43,7 @@ cbuffer ViewParams : register(b4)
 #define GOURAUD 0       // per-vertex lambert
 #define LAMBERT 1       // per-pixel lambert
 #define BLINNPHONG 2    // per-pixel blinnphong
+#define UNLIT 3         // No lights
 
 // LightType
 #define DIRECTIONAL 0
@@ -183,26 +184,30 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     float4 texColor = g_txColor.Sample(g_Sample, input.uv + UVOffset);
     // 빛을 받기 전 표면이 원래 가진 색
     float4 albedo = texColor * BaseColor;
-
-    float3 N = normalize(input.normal);
-
-    float3 totalLight = float3(0, 0, 0);
-
-    // Gouraud Shading 인 경우 VS에서 계산한 Light를 사용
-    #if LIGHTING_MODEL == GOURAUD
-        totalLight = input.vertexLight;
-    
-    // Blinn Phong Shading인 경우 계산
-    #else
-    for (uint i = 0; i < LightCount; ++i)
-    {
-            totalLight += EvaluateLight(Lights[i], N, input.worldPos);
-    }
-    #endif
-
     // Opaque 알파 1로 고정
     float alpha = bOpaque > 0.5f ? 1.0f : albedo.a;
 
-    float3 finalRGB = albedo.rgb * totalLight;
-    return float4(finalRGB, alpha);
+    // UNLIT (조명 없음)
+    #if LIGHTING_MODEL == UNLIT
+        return float4(albedo.rgb, alpha);
+    #else
+
+        float3 N = normalize(input.normal);
+        float3 totalLight = float3(0, 0, 0);
+
+        // Gouraud Shading 인 경우 VS에서 계산한 Light를 사용
+        #if LIGHTING_MODEL == GOURAUD
+            totalLight = input.vertexLight;
+        
+        // Blinn Phong Shading인 경우 계산
+        #else
+        for (uint i = 0; i < LightCount; ++i)
+        {
+                totalLight += EvaluateLight(Lights[i], N, input.worldPos);
+        }
+        #endif
+
+        float3 finalRGB = albedo.rgb * totalLight;
+        return float4(finalRGB, alpha);
+    #endif
 }

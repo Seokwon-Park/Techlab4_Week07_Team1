@@ -12,6 +12,7 @@ ADirectionalLightActor::ADirectionalLightActor()
     ArrowComponent->SetEditorIcon(true);
     ArrowComponent->SetupAttachment(DirectionalLightComponent);
     ArrowComponent->SetStaticMesh(UAssetManager::GetAssetByPath<UStaticMesh>("Arrow"));
+    ArrowComponent->SetMaterial(0, UAssetManager::GetAssetByPath<UMaterial>("EditorArrowMaterial"));
     ArrowComponent->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
     ArrowComponent->SetRelativeScale3D(FVector(0.3f, 0.3f, 0.5f));
     ArrowComponent->SetHiddenInDetails(true);

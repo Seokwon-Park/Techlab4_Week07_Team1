@@ -28,6 +28,7 @@ void FRenderResourceManager::ScanShaders(const fs::path& ShaderRoot)
 			LoadOrCompileShader(Path, "_GOURAUD", 	 {{"LIGHTING_MODEL", "0"}});
 			LoadOrCompileShader(Path, "_LAMBERT", 	 {{"LIGHTING_MODEL", "1"}});
 			LoadOrCompileShader(Path, "_BLINNPHONG", {{"LIGHTING_MODEL", "2"}});
+			LoadOrCompileShader(Path, "_UNLIT", 	 {{"LIGHTING_MODEL", "3"}});
 		}
 		else
 		{

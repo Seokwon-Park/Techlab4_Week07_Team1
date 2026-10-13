@@ -741,11 +741,14 @@ void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQ
             UStaticMesh* Mesh = StaticComponent->GetStaticMesh();
             if (!Mesh)
                 continue;
-
-            // 빛 방향 Arrow 이면 ArrowQueue로 빼기
-            FRenderQueue& Target = StaticComponent->IsEditorIcon()? OutArrowQueue : OutQueue;
-            StaticComponent->SubmitToRenderQueue(Target);
             
+            // 빛 방향 Arrow 이면 ArrowQueue로 빼기
+            if (StaticComponent->IsEditorIcon())
+            {
+                StaticComponent->SubmitToRenderQueue(OutArrowQueue, 0);
+                continue;
+            }
+
             const FPrimitiveSceneProxy* Proxy = StaticComponent->GetSceneProxy();
             if (Proxy)
             {
