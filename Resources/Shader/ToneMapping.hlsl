@@ -29,6 +29,6 @@ float4 mainPS(PSInput input) : SV_Target
 {
     float4 Loaded = InputTexture.Load(int3(input.Position.xy, 0));
     float4 Color = max(Loaded, 0);
-    const float Exposure = 0.6f;
+    const float Exposure = 1.0f;
     return float4(ToneMapACES(Color.rgb * Exposure), 1);
 }
