@@ -119,6 +119,9 @@ public:
     // 현재 가로·세로 Split 비율을 반환한다.
     const FSplitRatio& GetSplitRatio() const { return SplitRatio; }
 
+    FMatrix GetEngineView(int32 ViewIndex) const;
+    FMatrix GetEngineProjection(int32 ViewIndex) const;
+
 private:
     // Override가 있으면 그 카메라를, 없으면 저장 카메라를 반환한다. 외부 View는 Override만 쓴다.
     const FViewCamera& GetEffectiveCamera(int32 ViewIndex) const
@@ -133,6 +136,8 @@ private:
     struct PreparedView
     {
         FFrustumPlanes Frustum{};
+        FMatrix EngineView{};
+        FMatrix EngineProjection{};
         FMatrix EngineViewProjection{};
     };
     // 호출할 때마다 현재 카메라로 VP와 절두체를 계산한다.

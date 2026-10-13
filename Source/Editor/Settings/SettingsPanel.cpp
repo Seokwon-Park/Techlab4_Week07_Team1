@@ -45,6 +45,7 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
 	ImGui::Checkbox("Exponential Height Fog", &Settings.bExponentialHeightFog);
+	ImGui::Combo("Light Debug", &Settings.LightDebugMode, "Off\0Tile Heatmap\0Brute Force\0");
 	const char* Models[] = { "Gouraud", "Lambert", "Blinn-Phong" };
 	ImGui::Combo("Lighting Model", &Settings.LightingModel, Models, IM_ARRAYSIZE(Models));
 	//////////////////////////////////////////////////////////

@@ -39,3 +39,25 @@ FIndexBuffer::FIndexBuffer(ID3D11Device* Device, const D3D11_BUFFER_DESC& Desc, 
 {
 	IndexCount = Count;
 }
+
+FStructuredBuffer::FStructuredBuffer(ID3D11Device* Device, const D3D11_BUFFER_DESC& Desc, uint32 InStride, uint32 InElementCount, const void* InitialData)
+	:FBuffer(Device, Desc, InitialData)
+{
+	Stride = InStride;
+	MaxCount = InElementCount;
+
+	HRESULT hr;
+	if (Desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
+	{
+		hr = Device->CreateShaderResourceView(Buffer.Get(), nullptr, SRV.GetAddressOf());
+		if (FAILED(hr))
+			HTR_LOG(Error, "[StructuredBuffer] CreateShaderResourceView failed (hr=0x{:08X})", (uint32)hr);
+	}
+
+	if (Desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
+	{
+		hr = Device->CreateUnorderedAccessView(Buffer.Get(), nullptr, UAV.GetAddressOf());
+		if (FAILED(hr))
+			HTR_LOG(Error, "[StructuredBuffer] CreateUnorderedAccessView failed (hr=0x{:08X})", (uint32)hr);
+	}
+}

@@ -35,9 +35,12 @@ struct alignas(16) FViewConstants
 };
 static_assert(sizeof(FViewConstants) == 80, "UberLit.hlsl cbuffer Viewconstants 크기와 맞아야 한다");
 
-constexpr uint32 MaxPointLights = 4;
+constexpr uint32 MaxPointLights = 1024;
 constexpr uint32 MaxSpotLights = 4;
 constexpr uint32 MaxRectLights = 4;
+constexpr uint32 TileSize = 16;
+constexpr uint32 MaxLightsPerTile = 255;
+constexpr uint32 TileStride = MaxLightsPerTile + 1;
 
 // UberLit.hlsl의 cbuffer Lighting과 바이트 단위로 같아야 한다. 모든 구조체를 16바이트 배수로 맞춘다.
 struct FAmbientLightInfo
@@ -94,11 +97,13 @@ struct FRectLightInfo
 };
 
 
+
+
 struct alignas(16) FLightingConstants
 {
 	FAmbientLightInfo Ambient;
 	FDirectionalLightInfo Directional;
-	FPointLightInfo PointLights[MaxPointLights];
+	//FPointLightInfo PointLights[MaxPointLights];
 	FSpotLightInfo SpotLights[MaxSpotLights];
 	//FRectLightInfo RectLights[MaxRectLights];
 	uint32 NumPointLights;
@@ -135,6 +140,30 @@ struct FOcclusionMeasureResult
 	uint32 GPUOccludedDraws = 0;  // GPU가 가렸다고 판정한 드로우 수
 	uint32 FalseCulls = 0;        // 그중 실제로는 픽셀이 보인 드로우 수. 0이어야 한다
 };
+
+struct alignas(16) FFireBallLight
+{
+	FVector4 PositionRadius; // xyz: 위치, w: 반경
+	FVector4 ColorIntensity; // rgb: 색상, w: 강도
+	FVector4 FalloffEnabled; // x: 반경 감쇠, y: 사용 여부, zw: 패딩
+};
+
+struct alignas(16) FLightCullingConstants
+{
+	FMatrix View;
+	FMatrix Projection;
+	FVector2 ViewportSize;
+	uint32 NumTilesX;
+	uint32 NumPointLights;
+};
+
+struct alignas(16) FTileLightingConstants
+{
+	uint32 NumTilesX;
+	uint32 LightDebugMode;   // 0 = Off, 1 = Heatmap
+	uint32 Padding[2];
+};
+
 class FRenderer
 {
 public:
@@ -172,14 +201,22 @@ public:
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
 
-	// void SetFireBallLight(const FFireBallLightConstants& LightConstants);
-	void SetLighting(const FLightingConstants& LightingConstants);
+	//void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	void SetLighting(FLightingConstants& LightingConstants, const TArray<FPointLightInfo>& InPointLights, const TArray<FSpotLightInfo>& InSpotLights);
 
 	// 이후 그리는 UberLit 머티리얼이 쓸 조명 모델. View마다 RenderOpaque 전에 설정한다.
 	void SetViewMode(EViewMode InViewMode);
 	EViewMode GetViewMode() const { return CurrentViewMode; }
 
+	void CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height);
+	
+	// public
+	void SetLightDebugMode(uint32 Mode) { LightDebugMode = Mode; }
 private:
+	// private
+	TUniquePtr<FConstantBuffer> TileLightingCB;
+	uint32 LightDebugMode = 0;
+
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;
 	// 정렬된 RenderPackets에서 반투명 패킷이 시작되는 위치
@@ -221,6 +258,15 @@ private:
 
 	// UberLit의 b4. FireBall이 b3를 쓰는 동안은 슬롯을 나눠 둔다.
 	TUniquePtr<FConstantBuffer> LightingCB;
+	TUniquePtr<FConstantBuffer> LightCullingCB;
+
+	TUniquePtr<FStructuredBuffer> TileIndexBuffer;
+	TUniquePtr<FStructuredBuffer> PointLightBuffer;
+	TUniquePtr<FStructuredBuffer> SpotLightBuffer;
+
+	FComputeShader* LightCullingCS;
+
+	uint32 NumPointLightsThisFrame = 0;
 
 	EViewMode CurrentViewMode = EViewMode::Lit_Lambert;
 };

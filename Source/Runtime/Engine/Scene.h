@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "PrimitiveSceneProxy.h"
+#include "LightSceneProxy.h"
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/LightComponent.h"
@@ -66,6 +67,9 @@ public:
 	
 	// TArray<UFireBallComponent*> FireBallComponents;
 
-	TArray<ULightComponent*> LightComponents;
+	TArray<FLightSceneProxy*> LightSceneProxies;
 
+	TArray<ULightComponent*> LightComponents;
+	TArray<FPointLightInfo> PointLights;
+	TArray<FSpotLightInfo> SpotLights;
 };

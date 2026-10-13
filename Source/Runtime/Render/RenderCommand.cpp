@@ -50,6 +50,18 @@ TUniquePtr<FTexture2D> RenderCommand::CreateTexture2D(const D3D11_TEXTURE2D_DESC
 	return RenderDevice->CreateTexture2D(Desc, Image);
 }
 
+TUniquePtr<FStructuredBuffer> RenderCommand::CreateDynamicStructuredBuffer(uint32 Stride, uint32 Count)
+{
+	assert(RenderDevice);
+	return RenderDevice->CreateDynamicStructuredBuffer(Stride, Count);
+}
+
+TUniquePtr<FStructuredBuffer> RenderCommand::CreateRWStructuredBuffer(uint32 Stride, uint32 Count)
+{
+	assert(RenderDevice);
+	return RenderDevice->CreateRWStructuredBuffer(Stride, Count);
+}
+
 TUniquePtr<FTexture2D> RenderCommand::CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const void* InitialData)
 {
 	assert(RenderDevice);
@@ -72,6 +84,12 @@ TUniquePtr<FPixelShader> RenderCommand::CreatePixelShader(const FShaderByteCode&
 {
 	assert(RenderDevice);
 	return RenderDevice->CreatePixelShader(ByteCode);
+}
+
+TUniquePtr<FComputeShader> RenderCommand::CreateComputeShader(const FShaderByteCode& ByteCode)
+{
+	assert(RenderDevice);
+	return RenderDevice->CreateComputeShader(ByteCode);
 }
 
 void RenderCommand::BindPipelineState(const FPipelineState& PipelineState)
@@ -145,6 +163,8 @@ void RenderCommand::BindConstantBuffer(uint32 Slot, FConstantBuffer* ConstantBuf
 		RenderDevice->GetContext()->VSSetConstantBuffers(Slot, 1, &Buffer);
 	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
 		RenderDevice->GetContext()->PSSetConstantBuffers(Slot, 1, &Buffer);
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Compute))
+		RenderDevice->GetContext()->CSSetConstantBuffers(Slot, 1, &Buffer);
 
 }
 
@@ -161,6 +181,8 @@ void RenderCommand::BindConstantBufferRange(uint32 Slot, FConstantBuffer* Consta
 		Context->VSSetConstantBuffers1(Slot, 1, &Buffer, &FirstConstant, &NumConstants);
 	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
 		Context->PSSetConstantBuffers1(Slot, 1, &Buffer, &FirstConstant, &NumConstants);
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Compute))
+		Context->CSSetConstantBuffers1(Slot, 1, &Buffer, &FirstConstant, &NumConstants);
 }
 
 void* RenderCommand::MapWriteDiscard(FBuffer* InBuffer)
@@ -179,15 +201,7 @@ void RenderCommand::Unmap(FBuffer* InBuffer)
 void RenderCommand::BindShaderResource(uint32 Slot, FTexture2D* Texture2D, EShaderBindFlagBits FlagBits)
 {
 	ID3D11ShaderResourceView* SRV = Texture2D->GetSRV();
-	if (HasFlag(FlagBits, EShaderBindFlagBits::Vertex))
-	{
-		RenderDevice->GetContext()->VSSetShaderResources(Slot, 1, &SRV);
-	}
-
-	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
-	{
-		RenderDevice->GetContext()->PSSetShaderResources(Slot, 1, &SRV);
-	}
+	BindShaderResource(Slot, SRV, FlagBits);
 }
 
 void RenderCommand::BindShaderResource(uint32 Slot, UTexture2D* Texture2D, EShaderBindFlagBits FlagBits)
@@ -198,15 +212,7 @@ void RenderCommand::BindShaderResource(uint32 Slot, UTexture2D* Texture2D, EShad
 void RenderCommand::UnbindShaderResource(uint32 Slot, EShaderBindFlagBits FlagBits)
 {
 	ID3D11ShaderResourceView* NullSRV = nullptr;
-	if (HasFlag(FlagBits, EShaderBindFlagBits::Vertex))
-	{
-		RenderDevice->GetContext()->VSSetShaderResources(Slot, 1, &NullSRV);
-	}
-
-	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
-	{
-		RenderDevice->GetContext()->PSSetShaderResources(Slot, 1, &NullSRV);
-	}
+	BindShaderResource(Slot, NullSRV, FlagBits);
 }
 
 void RenderCommand::CopyTexture(FTexture2D* Dst, FTexture2D* Src)
@@ -303,3 +309,51 @@ void RenderCommand::BindSamplerState(uint32 Slot, ESamplerState SamplerState, ES
 	}
 }
 
+void RenderCommand::BindComputeShader(FComputeShader* ComputeShader)
+{
+	RenderDevice->GetContext()->CSSetShader(ComputeShader->GetShader(), nullptr, 0);
+}
+
+void RenderCommand::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
+{
+	RenderDevice->GetContext()->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+}
+
+void RenderCommand::BindUnorderedAccess(uint32 Slot, FStructuredBuffer* StructuredBuffer)
+{
+	ID3D11UnorderedAccessView* UAV = StructuredBuffer->GetUAV();
+	RenderDevice->GetContext()->CSSetUnorderedAccessViews(Slot, 1, &UAV, nullptr);
+}
+
+void RenderCommand::UnbindUnorderedAccess(uint32 Slot)
+{
+	ID3D11UnorderedAccessView* NullUAV = nullptr;
+	RenderDevice->GetContext()->CSSetUnorderedAccessViews(Slot, 1, &NullUAV, nullptr);
+
+}
+
+void RenderCommand::BindShaderResource(uint32 Slot, FStructuredBuffer* StructuredBuffer, EShaderBindFlagBits FlagBits)
+{
+	ID3D11ShaderResourceView* SRV = StructuredBuffer->GetSRV();
+	BindShaderResource(Slot, SRV, FlagBits);
+}
+
+inline void RenderCommand::BindShaderResource(uint32 Slot, ID3D11ShaderResourceView* SRV, EShaderBindFlagBits FlagBits)
+{
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Vertex))
+	{
+		RenderDevice->GetContext()->VSSetShaderResources(Slot, 1, &SRV);
+	}
+
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
+	{
+		RenderDevice->GetContext()->PSSetShaderResources(Slot, 1, &SRV);
+	}
+
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Compute))
+	{
+		RenderDevice->GetContext()->CSSetShaderResources(Slot, 1, &SRV);
+	}
+}
+
+ 

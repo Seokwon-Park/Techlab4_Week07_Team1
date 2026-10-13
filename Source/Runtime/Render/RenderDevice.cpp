@@ -138,6 +138,32 @@ TUniquePtr<FConstantBuffer> FRenderDevice::CreateConstantBuffer(uint32 BufferSiz
 	return Buffer;
 }
 
+TUniquePtr<FStructuredBuffer> FRenderDevice::CreateDynamicStructuredBuffer(uint32 Stride, uint32 Count)
+{
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.ByteWidth = Stride*Count;
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	Desc.StructureByteStride = Stride;
+
+	return MakeUnique<FStructuredBuffer>(Device.Get(), Desc, Stride, Count, nullptr);
+}
+
+TUniquePtr<FStructuredBuffer> FRenderDevice::CreateRWStructuredBuffer(uint32 Stride, uint32 Count)
+{
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.ByteWidth = Stride * Count;
+	Desc.Usage = D3D11_USAGE_DEFAULT;
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	Desc.StructureByteStride = Stride;
+
+
+	return MakeUnique<FStructuredBuffer>(Device.Get(), Desc, Stride, Count, nullptr);
+}
+
 TUniquePtr<FTexture2D> FRenderDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const FImageData& Image)
 {
 	return MakeUnique<FTexture2D>(Device.Get(), Desc, Image);
@@ -169,6 +195,13 @@ TUniquePtr<FPixelShader> FRenderDevice::CreatePixelShader(const FShaderByteCode&
 	TUniquePtr<FPixelShader> PS = MakeUnique<FPixelShader>(Device.Get(), ByteCode);
 
 	return PS;
+}
+
+TUniquePtr<FComputeShader> FRenderDevice::CreateComputeShader(const FShaderByteCode& ByteCode)
+{
+	TUniquePtr<FComputeShader> CS = MakeUnique<FComputeShader>(Device.Get(), ByteCode);
+
+	return CS;
 }
 
 //TUniquePtr<FShaderProgram> FRenderDevice::CreateShader(const wchar_t* FileName, D3D11_INPUT_ELEMENT_DESC* InLayoutDesc, size_t InLayoutSize)

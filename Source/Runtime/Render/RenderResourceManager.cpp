@@ -65,16 +65,16 @@ void FRenderResourceManager::LoadUberLit(const fs::path& ShaderRoot)
 
 	// 뷰모드 -> 변형 테이블. 컴파일에 실패한 키는 nullptr로 남는다(GetShaderProgram의 폴백을 쓰지 않으려고 맵을 직접 찾는다).
 	auto FindProgram = [this](const FString& Key) -> FShaderProgram*
-	{
-		TUniquePtr<FShaderProgram>* Found = ShaderProgramMap.Find(Key);
-		return Found ? Found->get() : nullptr;
-	};
+		{
+			TUniquePtr<FShaderProgram>* Found = ShaderProgramMap.Find(Key);
+			return Found ? Found->get() : nullptr;
+		};
 
 	UberLitDefault = FindProgram(MakeShaderKey(Path, nullptr));
 	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Gouraud)] = FindProgram(MakeShaderKey(Path, Gouraud));
 	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Lambert)] = FindProgram(MakeShaderKey(Path, Lambert));
 	UberLitPrograms[static_cast<int32>(EViewMode::Lit_BlinnPhong)] = FindProgram(MakeShaderKey(Path, BlinnPhong));
-	UberLitPrograms[static_cast<int32>(EViewMode::Unlit)]       = FindProgram(MakeShaderKey(Path, Unlit));
+	UberLitPrograms[static_cast<int32>(EViewMode::Unlit)] = FindProgram(MakeShaderKey(Path, Unlit));
 	UberLitPrograms[static_cast<int32>(EViewMode::WorldNormal)] = FindProgram(MakeShaderKey(Path, WorldNormal));
 }
 
@@ -106,6 +106,7 @@ void FRenderResourceManager::Shutdown()
 {
 	Get().VertexShaderMap.Empty();
 	Get().PixelShaderMap.Empty();
+	Get().ComputeShaderMap.Empty();
 	Get().ShaderProgramMap.Empty();
 	Get().UberLitDefault = nullptr;
 	for (FShaderProgram*& Program : Get().UberLitPrograms)
@@ -128,38 +129,68 @@ FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath, 
 	return nullptr;
 }
 
+FComputeShader* FRenderResourceManager::GetComputeShader(const FString& InPath)
+{
+	if (TUniquePtr<FComputeShader>* Found = Get().ComputeShaderMap.Find(InPath))
+		return Found->get();
+	return nullptr;
+}
 void FRenderResourceManager::LoadOrCompileShader(const FString& Path, const D3D_SHADER_MACRO* Macro)
 {
-	FString VSCSOPath;
-	FString PSCSOPath;
-	FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath, Macro);
-	FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel, PSCSOPath, Macro);
+	std::ifstream In(Path);
+	const std::string Source((std::istreambuf_iterator<char>(In)), std::istreambuf_iterator<char>());
 
-	const FString Key = MakeShaderKey(Path, Macro);
+	const bool bHasVS = Source.find("mainVS") != std::string::npos;
+	const bool bHasPS = Source.find("mainPS") != std::string::npos;
+	const bool bHasCS = Source.find("mainCS") != std::string::npos;
 
-	if (!VSCode.IsValid() || !PSCode.IsValid())
+	if (bHasVS || bHasPS)
 	{
-		HTR_LOG(Error, "[Shader] compile failed: {}", Key);
-		return;
+		FString VSCSOPath;
+		FString PSCSOPath;
+		FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath, Macro);
+		FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel, PSCSOPath, Macro);
+		const FString Key = MakeShaderKey(Path, Macro);
+
+
+
+
+		if (!VSCode.IsValid() || !PSCode.IsValid())
+		{
+			HTR_LOG(Error, "[Shader] compile failed: {}", Key);
+			return;
+		}
+
+		TUniquePtr<FVertexShader> Vs = RenderCommand::CreateVertexShader(VSCode);
+		TUniquePtr<FPixelShader>  Ps = RenderCommand::CreatePixelShader(PSCode);
+
+		if (!Vs || !Vs->IsValid() || !Ps || !Ps->IsValid())
+		{
+			HTR_LOG(Error, "[Shader] device create failed: {}", Key);
+			return;
+		}
+
+		FVertexShader* VsRaw = Vs.get();
+		FPixelShader* PsRaw = Ps.get();
+
+		VertexShaderMap[VSCSOPath] = std::move(Vs);
+		PixelShaderMap[PSCSOPath] = std::move(Ps);
+
+		ShaderProgramMap[Key] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
+
+		HTR_LOG(Info, "[Shader] Loaded Shader: {}", Path);
 	}
 
-	TUniquePtr<FVertexShader> Vs = RenderCommand::CreateVertexShader(VSCode);
-	TUniquePtr<FPixelShader>  Ps = RenderCommand::CreatePixelShader(PSCode);
-
-	if (!Vs || !Vs->IsValid() || !Ps || !Ps->IsValid())
+	if (bHasCS)
 	{
-		HTR_LOG(Error, "[Shader] device create failed: {}", Key);
-		return;
+		FString CSOPath;
+		FShaderByteCode CSCode = RenderUtil::GetOrCompile(Path, "mainCS", EShaderType::Compute, CSOPath);
+		if (!CSCode.IsValid()) { HTR_LOG(Error, "[Shader] compute compile failed: {}", Path); return; }   // 진짜 에러
+
+		ComputeShaderMap[Path] = RenderCommand::CreateComputeShader(CSCode);
+
+		HTR_LOG(Info, "[Shader] Loaded ComputeShader: {}", Path);
+
 	}
-
-	FVertexShader* VsRaw = Vs.get();
-	FPixelShader* PsRaw = Ps.get();
-
-	VertexShaderMap[VSCSOPath] = std::move(Vs);
-	PixelShaderMap[PSCSOPath] = std::move(Ps);
-
-	ShaderProgramMap[Key] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
-
-	HTR_LOG(Info, "[Shader] loaded: {}", Key);
 
 }
