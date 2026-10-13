@@ -26,9 +26,9 @@ public:
 	float SetBarnDoorLength(float InLength) { BarnDoorLength = std::clamp(InLength, 0.0f, 90.0f); }
 
 private:
-	float HalfWidth = 6.0f;
-	float HalfHeight = 6.0f;
+	float HalfWidth = 3.0f;
+	float HalfHeight = 3.0f;
 	float BarnDoorAngle = 88.0f;	// 도 단위
-	float BarnDoorLength = 4.0f;	
+	float BarnDoorLength = 2.0f;	
 
 };
