@@ -449,6 +449,7 @@ void FViewportsPanel::ResizeSlot(FViewSlot& Slot, const uint32 Width, const uint
 	Desc.Usage = D3D11_USAGE_DEFAULT;
 	Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	Slot.ColorTarget = RenderCommand::CreateTexture2D(Desc);
+	Slot.NormalTarget = RenderCommand::CreateTexture2D(Desc);
 	// CopyResource로 되돌려 쓰므로 ColorTarget과 같은 Desc로 만든다
 	Slot.FxaaTarget = RenderCommand::CreateTexture2D(Desc);
 
@@ -465,5 +466,7 @@ void FViewportsPanel::ResizeSlot(FViewSlot& Slot, const uint32 Width, const uint
 	FRenderingDesc ColorDesc{};
 	ColorDesc.Texture = Slot.ColorTarget.get();
 	Slot.RenderingInfo.ColorRenderTargets.Add(ColorDesc);
+	ColorDesc.Texture = Slot.NormalTarget.get();
+	Slot.RenderingInfo.ColorRenderTargets.Add(ColorDesc); // NormalTarget 은 ColorTarget 과 같은 사양이다. 
 	Slot.RenderingInfo.DepthStencil.Texture = Slot.DepthTarget.get();
 }

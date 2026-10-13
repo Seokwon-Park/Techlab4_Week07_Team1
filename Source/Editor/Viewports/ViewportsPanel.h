@@ -47,6 +47,7 @@ private:
 		uint32 Width = 0;
 		uint32 Height = 0;
 		TUniquePtr<FTexture2D> ColorTarget;
+		TUniquePtr<FTexture2D> NormalTarget; 
 		TUniquePtr<FTexture2D> DepthTarget;
 		TUniquePtr<FTexture2D> FxaaTarget;
 		FRenderingInfo RenderingInfo{};
