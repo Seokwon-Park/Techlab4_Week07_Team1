@@ -46,10 +46,10 @@ void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     const FVector A3 = AC + Right * (HW + S) - Up * (HH + S);
 
     // 사각형
-    LineBatcher->AddLine(C0, C1, DoorColor);
-    LineBatcher->AddLine(C1, C2, DoorColor);
-    LineBatcher->AddLine(C2, C3, DoorColor);
-    LineBatcher->AddLine(C3, C0, DoorColor);
+    LineBatcher->AddLine(C0, C1, Color);
+    LineBatcher->AddLine(C1, C2, Color);
+    LineBatcher->AddLine(C2, C3, Color);
+    LineBatcher->AddLine(C3, C0, Color);
 
     // 개구부 사각형
     LineBatcher->AddLine(A0, A1, DoorColor);
