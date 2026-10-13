@@ -68,6 +68,11 @@ TUniquePtr<FTexture2D> RenderCommand::CreateTexture2D(const D3D11_TEXTURE2D_DESC
 	return RenderDevice->CreateTexture2D(Desc, InitialData);
 }
 
+TUniquePtr<FTexture2D> RenderCommand::LoadDDSTexture(const FString& Path) {
+	assert(RenderDevice);
+	return RenderDevice->LoadDDSTexture(Path);
+}
+
 TUniquePtr<FTextureCube> RenderCommand::CreateTextureCube(const D3D11_TEXTURE2D_DESC& Desc, const TArray<const void*>& InitialDatas)
 {
 	assert(RenderDevice);
@@ -332,9 +337,8 @@ void RenderCommand::UnbindUnorderedAccess(uint32 Slot)
 
 }
 
-void RenderCommand::BindShaderResource(uint32 Slot, FStructuredBuffer* StructuredBuffer, EShaderBindFlagBits FlagBits)
-{
-	ID3D11ShaderResourceView* SRV = StructuredBuffer->GetSRV();
+void RenderCommand::BindShaderResource(uint32 Slot, FStructuredBuffer* StructuredBuffer, EShaderBindFlagBits FlagBits) {
+	ID3D11ShaderResourceView* SRV{ StructuredBuffer ? StructuredBuffer->GetSRV() : nullptr };
 	BindShaderResource(Slot, SRV, FlagBits);
 }
 
@@ -356,4 +360,4 @@ inline void RenderCommand::BindShaderResource(uint32 Slot, ID3D11ShaderResourceV
 	}
 }
 
- 
+

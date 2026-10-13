@@ -143,9 +143,9 @@ void FRenderResourceManager::LoadOrCompileShader(const FString& Path, const D3D_
 	const bool bHasVS = Source.find("mainVS") != std::string::npos;
 	const bool bHasPS = Source.find("mainPS") != std::string::npos;
 	const bool bHasCS = Source.find("mainCS") != std::string::npos;
+	const bool HasGraphicsInclude{ !bHasCS && Source.find("#include") != std::string::npos };
 
-	if (bHasVS || bHasPS)
-	{
+	if (bHasVS || bHasPS || HasGraphicsInclude) {
 		FString VSCSOPath;
 		FString PSCSOPath;
 		FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath, Macro);

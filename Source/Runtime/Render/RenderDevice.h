@@ -2,6 +2,7 @@
 
 #include <d3d11_1.h>
 #include "RenderStates.h"
+#include "Core/EngineString.h"
 
 class FVertexBuffer;
 class FShader;
@@ -44,6 +45,7 @@ public:
 
 	TUniquePtr<FTexture2D> CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const void* InitialData);
 	TUniquePtr<FTexture2D> CreateTexture2D(const D3D11_TEXTURE2D_DESC& Desc, const FImageData& Image);
+	TUniquePtr<FTexture2D> LoadDDSTexture(const FString& Path);
 	TUniquePtr<FTextureCube> CreateTextureCube(const D3D11_TEXTURE2D_DESC& Desc, const TArray<const void*>& InitialDatas);
 
 	TUniquePtr<FVertexShader> CreateVertexShader(const FShaderByteCode& ByteCode);

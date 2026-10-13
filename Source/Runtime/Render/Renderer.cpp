@@ -8,12 +8,11 @@
 
 #include "Engine/PrimitiveSceneProxy.h"
 
-#include "RenderResourceManager.h"
-
 #include "RenderCommand.h"
 #include "RenderResourceManager.h"
 
 #include "Camera/CameraComponent.h"
+#include "Asset/AssetManager.h"
 
 #include <algorithm>
 #include <chrono>
@@ -67,10 +66,12 @@ bool FRenderer::Init()
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FViewConstants));
 	// FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
 	LightingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightingConstants));
-	LightCullingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightCullingConstants));
-	TileLightingCB = RenderCommand::CreateConstantBuffer(sizeof(FTileLightingConstants));
+	mLightCullingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightCullingConstants));
+	mTileLightingCB = RenderCommand::CreateConstantBuffer(sizeof(FTileLightingConstants));
 
-	PointLightBuffer = RenderCommand::CreateDynamicStructuredBuffer(sizeof(FPointLightInfo), MaxPointLights);
+	mPointLightBuffer = RenderCommand::CreateDynamicStructuredBuffer(sizeof(FPointLightInfo), MaxPointLights);
+	const FTileLightingConstants TileConstants{};
+	RenderCommand::UpdateBufferData(mTileLightingCB.get(), &TileConstants, sizeof(TileConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -150,10 +151,10 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection, 
 
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindShaderResource(10, PointLightBuffer.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindShaderResource(12, TileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindConstantBuffer(5, TileLightingCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
+	RenderCommand::BindShaderResource(10, mPointLightBuffer.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
+	RenderCommand::BindShaderResource(12, mTileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(5, mTileLightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 
 	DrawStaticGroups();
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
@@ -162,10 +163,10 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 // RenderOpaque가 남긴 반투명 패킷을 먼 것부터 그린다.
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindShaderResource(10, PointLightBuffer.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindShaderResource(12, TileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindConstantBuffer(5, TileLightingCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
+	RenderCommand::BindShaderResource(10, mPointLightBuffer.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
+	RenderCommand::BindShaderResource(12, mTileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(5, mTileLightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -474,27 +475,31 @@ void FRenderer::EndObjectConstants()
 }
 
 // Material마다 Shader/Texture/Sampler/State 꽂기
-void FRenderer::BindMaterial(UMaterial* material)
-{
-	// UberLit 머티리얼이면 현재 뷰모드의 변형으로 바꿔 끼운다. 다른 셰이더(Text, Particle 등)는 그대로 둔다.
-	FShaderProgram* Program = material->Shader;
-	if (FRenderResourceManager::IsUberLitProgram(Program))
-	{
-		if (FShaderProgram* Variant = FRenderResourceManager::GetUberLitProgram(CurrentViewMode))
+void FRenderer::BindMaterial(UMaterial* Material) {
+	FShaderProgram* Program{ Material->Shader };
+	if (FRenderResourceManager::IsUberLitProgram(Program)) {
+		if (FShaderProgram* Variant{ FRenderResourceManager::GetUberLitProgram(CurrentViewMode) }) {
 			Program = Variant;
+		}
 	}
-	RenderCommand::BindShaderProgram(Program);
-	RenderCommand::SetBlendState(material->BlendState);
-	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
-	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
-	RenderCommand::SetDepthStencilState(bTranslucent && material->DepthStencilState == EDepthStencilState::Default
-		? EDepthStencilState::ReadOnly : material->DepthStencilState);
 
-	for (int i = 0; i < material->Textures.size(); i++)
-	{
-		RenderCommand::BindShaderResource(i, material->Textures[i], EShaderBindFlagBits::Pixel);
+	RenderCommand::BindShaderProgram(Program);
+	RenderCommand::SetBlendState(Material->BlendState);
+	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
+	const bool Translucent{ Material->BlendState != EBlendState::Opaque };
+	RenderCommand::SetDepthStencilState(Translucent && Material->DepthStencilState == EDepthStencilState::Default ? EDepthStencilState::ReadOnly : Material->DepthStencilState);
+
+	const int32 TextureCount{ Material->ParamLayout == EMaterialParamLayout::StaticMesh ? std::max(2, Material->Textures.Num()) : Material->Textures.Num() };
+	for (int32 Index{}; Index < TextureCount; ++Index) {
+		UTexture2D* Texture{ Index < Material->Textures.Num() ? Material->Textures[Index] : nullptr };
+		if (!Texture && Material->ParamLayout == EMaterialParamLayout::StaticMesh && Index < 2) {
+			Texture = UAssetManager::GetAssetByPath<UTexture2D>(Index == 0 ? "WhiteTexture" : "FlatNormalTexture");
+		}
+		if (Texture) {
+			RenderCommand::BindShaderResource(Index, Texture, EShaderBindFlagBits::Pixel);
+		}
 	}
-	RenderCommand::BindSamplerState(0, material->SamplerState, EShaderBindFlagBits::Pixel);
+	RenderCommand::BindSamplerState(0, Material->SamplerState, EShaderBindFlagBits::Pixel);
 }
 
 // b1 내용 채우고 꽂기
@@ -563,54 +568,62 @@ void FRenderer::SetViewMode(EViewMode InViewMode)
 	LastMaterial = nullptr;
 }
 
-void FRenderer::SetLighting(FLightingConstants& LightingConstants, const TArray<FPointLightInfo>& InPointLights, const TArray<FSpotLightInfo>& InSpotLights)
-{
-	NumPointLightsThisFrame = std::min<uint32>(InPointLights.Num(), PointLightBuffer->GetMaxCount());
-	LightingConstants.NumPointLights = NumPointLightsThisFrame;
-	if (NumPointLightsThisFrame < (uint32)InPointLights.Num())
-		HTR_LOG(Warning, "Point lights exceed capacity: {} / {}", InPointLights.Num(), NumPointLightsThisFrame);
-	  
-	if (NumPointLightsThisFrame > 0)
-		RenderCommand::UpdateBufferData(PointLightBuffer.get(), InPointLights.GetData(), NumPointLightsThisFrame * sizeof(FPointLightInfo));
+void FRenderer::SetLighting(FLightingConstants& LightingConstants, const TArray<FPointLightInfo>& InPointLights, const TArray<FSpotLightInfo>& InSpotLights) {
+	mNumPointLightsThisFrame = std::min<uint32>(InPointLights.Num(), mPointLightBuffer->GetMaxCount());
+	LightingConstants.NumPointLights = mNumPointLightsThisFrame;
+	if (mNumPointLightsThisFrame < static_cast<uint32>(InPointLights.Num())) {
+		HTR_LOG(Warning, "Point lights exceed capacity: {} / {}", InPointLights.Num(), mNumPointLightsThisFrame);
+	}
 
-	//const uint32 SpotCount = std::min<uint32>(InPointLights.Num(), PointLightBuffer->GetMaxCount());
-	//if (SpotCount < (uint32)InPointLights.Num())
-	//	HTR_LOG(Warning, "Point lights exceed capacity: {} / {}", InPointLights.Num(), PointCount);
+	if (mNumPointLightsThisFrame > 0) {
+		RenderCommand::UpdateBufferData(mPointLightBuffer.get(), InPointLights.GetData(), mNumPointLightsThisFrame * sizeof(FPointLightInfo));
+	}
 
-	//if (SpotCount > 0)
-	//	RenderCommand::UpdateBufferData(PointLightBuffer.get(), InPointLights.GetData(), PointCount * sizeof(FPointLightInfo));
-
-	
+	if (!InSpotLights.IsEmpty()) {
+		LightingConstants.NumSpotLights = std::min<uint32>(InSpotLights.Num(), MaxSpotLights);
+		std::copy_n(InSpotLights.GetData(), LightingConstants.NumSpotLights, LightingConstants.SpotLights);
+	}
+	LightingConstants.NumSpotLights = std::min(LightingConstants.NumSpotLights, MaxSpotLights);
 
 	RenderCommand::UpdateBufferData(LightingCB.get(), &LightingConstants, sizeof(FLightingConstants));
+	const FTileLightingConstants TileConstants{ 0, mLightDebugMode, {} };
+	RenderCommand::UpdateBufferData(mTileLightingCB.get(), &TileConstants, sizeof(TileConstants));
 }
 
-void FRenderer::CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height)
-{
-	if (Width == 0 || Height == 0) return;
+void FRenderer::CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height) {
+	if (Width == 0 || Height == 0) {
+		const FTileLightingConstants TileConstants{ 0, mLightDebugMode, {} };
+		RenderCommand::UpdateBufferData(mTileLightingCB.get(), &TileConstants, sizeof(TileConstants));
+		return;
+	}
 
-	const uint32 NumTilesX = (Width + TileSize - 1) / TileSize;
-	const uint32 NumTilesY = (Height + TileSize - 1) / TileSize;
-	const uint32 Required = NumTilesX * NumTilesY * TileStride;
-
-	if (!TileIndexBuffer || TileIndexBuffer->GetMaxCount() < Required)
-		TileIndexBuffer = RenderCommand::CreateRWStructuredBuffer(sizeof(uint32), Required);
-
-	FLightCullingConstants CB{ View, Projection, FVector2(Width, Height), NumTilesX, NumPointLightsThisFrame  };
-	RenderCommand::UpdateBufferData(LightCullingCB.get(), &CB, sizeof(FLightCullingConstants));
+	const uint32 NumTilesX{ (Width + TileSize - 1) / TileSize };
+	const uint32 NumTilesY{ (Height + TileSize - 1) / TileSize };
+	const uint32 Required{ NumTilesX * NumTilesY * TileStride };
 
 	RenderCommand::UnbindShaderResource(12, EShaderBindFlagBits::Pixel);
+	if (!mTileIndexBuffer || mTileIndexBuffer->GetMaxCount() < Required) {
+		mTileIndexBuffer = RenderCommand::CreateRWStructuredBuffer(sizeof(uint32), Required);
+	}
+
+	const FLightCullingConstants CB{ View, Projection, FVector2{ static_cast<float>(Width), static_cast<float>(Height) }, NumTilesX, mNumPointLightsThisFrame };
+	RenderCommand::UpdateBufferData(mLightCullingCB.get(), &CB, sizeof(FLightCullingConstants));
 
 	RenderCommand::BindComputeShader(FRenderResourceManager::GetComputeShader("Resources/Shader/TileBasedLightCulling.hlsl"));
-	RenderCommand::BindConstantBuffer(0, LightCullingCB.get(), EShaderBindFlagBits::Compute);
-	RenderCommand::BindShaderResource(10, PointLightBuffer.get(), EShaderBindFlagBits::Compute);
-	RenderCommand::BindUnorderedAccess(0, TileIndexBuffer.get());
+	RenderCommand::BindConstantBuffer(0, mLightCullingCB.get(), EShaderBindFlagBits::Compute);
+	RenderCommand::BindShaderResource(10, mPointLightBuffer.get(), EShaderBindFlagBits::Compute);
+	RenderCommand::BindUnorderedAccess(0, mTileIndexBuffer.get());
 	RenderCommand::Dispatch(NumTilesX, NumTilesY, 1);
 	RenderCommand::UnbindUnorderedAccess(0);
+	RenderCommand::UnbindShaderResource(10, EShaderBindFlagBits::Compute);
 
 	// 4단계에서 PS가 읽을 수 있게
-	FTileLightingConstants TileCB{ NumTilesX, LightDebugMode };
-	RenderCommand::UpdateBufferData(TileLightingCB.get(), &TileCB, sizeof(TileCB));
-	RenderCommand::BindConstantBuffer(5, TileLightingCB.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindShaderResource(12, TileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
+	const FTileLightingConstants TileCB{ NumTilesX, mLightDebugMode, {} };
+	RenderCommand::UpdateBufferData(mTileLightingCB.get(), &TileCB, sizeof(TileCB));
+	RenderCommand::BindConstantBuffer(5, mTileLightingCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindShaderResource(12, mTileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
+}
+
+void FRenderer::SetLightDebugMode(uint32 Mode) {
+	mLightDebugMode = Mode;
 }

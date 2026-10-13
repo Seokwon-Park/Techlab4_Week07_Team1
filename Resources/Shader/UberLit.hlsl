@@ -115,6 +115,7 @@ StructuredBuffer<FPointLightInfo> PointLights : register(t10);
 StructuredBuffer<uint> TileLightIndices : register(t12);
 
 Texture2D g_txColor : register(t0);
+Texture2D NormalTexture : register(t1);
 SamplerState g_Sample : register(s0);
 
 struct VS_INPUT
@@ -146,7 +147,7 @@ struct FLightContribution
     float3 Specular;
 };
 
-// L 벡터와 Attenuation을 구한다. 
+// L 벡터와 Attenuation을 구한다.
 float LocalLightAttenuation(float3 LightPos, float Radius, float FalloffExp, float3 WorldPos, out float3 L)
 {
     const float3 ToLight = LightPos - WorldPos; //픽셀의 월드 좌표에서 빛을 향하는 벡터를 구한다.
@@ -156,7 +157,7 @@ float LocalLightAttenuation(float3 LightPos, float Radius, float FalloffExp, flo
     return Atten;
 }
 
-// 원뿔 감쇠량 
+// 원뿔 감쇠량
 float SpotConeFactor(FSpotLightInfo S, float3 L)
 {
     return smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
@@ -225,7 +226,7 @@ float3 HeatColor(uint Count)
         return float3(0, 0, 0);
     if (Count >= 32)
         return float3(1, 1, 1);
-    
+
     float t = Count / 8.0f;
     return saturate(float3(t * 2 - 0.5, 1 - abs(t * 2 - 1), 1.5 - t * 2));
 }
@@ -252,32 +253,26 @@ float3 HeatColor(uint Count)
 
 // bTiled = true면 SVPosition이 속한 타일의 PointLight만, false면 전체 PointLight를 순회한다.
 // VS(Gouraud)는 픽셀 위치가 없어 타일을 쓸 수 없으므로 false로 호출한다.
-FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess, float4 SVPosition, bool bTiled)
-{
+FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess, float4 SVPosition, bool Tiled) {
     // Directional Light는 초기에 한 번만 계산
-    FLightContribution Contribution = CalcDirectional(N, V, InShininess);
-
-    if (bTiled && LightDebugMode != 2)
-    {
-        const uint Base = GetTileBase(SVPosition);
-        const uint Count = TileLightIndices[Base];
-        for (uint i = 0; i < Count; ++i)
-        {
-            const uint LightIndex = TileLightIndices[Base + 1 + i];
-            FLightContribution Temp = CalcPoint(PointLights[LightIndex], N, V, WorldPos, InShininess);
-            Contribution.Diffuse += Temp.Diffuse;
-            Contribution.Specular += Temp.Specular;
+    FLightContribution Contribution = { CalcDirectional(N, V, InShininess) };
+    uint PointLightCount = { NumPointLights };
+    uint TileBase = { 0 };
+    bool UseTileList = { false };
+    if (Tiled && NumTilesX > 0 && LightDebugMode != 2) {
+        TileBase = GetTileBase(SVPosition);
+        const uint Count = { TileLightIndices[TileBase] };
+        if (Count < MAX_LIGHTS_PER_TILE) {
+            PointLightCount = Count;
+            UseTileList = true;
         }
     }
-    else
-    {
-        // 모든 PointLight의 Contribution을 누적
-        for (uint p = 0; p < NumPointLights; ++p)
-        {
-            FLightContribution Temp = CalcPoint(PointLights[p], N, V, WorldPos, InShininess);
-            Contribution.Diffuse += Temp.Diffuse;
-            Contribution.Specular += Temp.Specular;
-        }
+
+    for (uint Index = { 0 }; Index < PointLightCount; ++Index) {
+        const uint LightIndex = { UseTileList ? TileLightIndices[TileBase + 1 + Index] : Index };
+        const FLightContribution Temp = { CalcPoint(PointLights[LightIndex], N, V, WorldPos, InShininess) };
+        Contribution.Diffuse += Temp.Diffuse;
+        Contribution.Specular += Temp.Specular;
     }
     // 모든 SpotLight의 Contribution을 누적
     for (uint s = 0; s < NumSpotLights; ++s)
@@ -300,7 +295,7 @@ PS_INPUT mainVS(VS_INPUT Input)
 
     // 노멀은 역전치로, 탄젠트는 표면을 따라 놓인 방향이라 World로 변환한다.
     Output.normal = mul(float4(Input.normal, 0.0f), WorldInverseTranspose).xyz;
-    Output.tangent = float4(mul(float4(Input.tangent.xyz, 0.0f), World).xyz, Input.tangent.w);
+    Output.tangent = float4(mul(float4(Input.tangent.xyz, 0.0f), World).xyz, Input.tangent.w * (determinant((float3x3) World) < 0.0f ? -1.0f : 1.0f));
 
     Output.uv = Input.uv;
     Output.color = Input.color;
@@ -312,35 +307,44 @@ PS_INPUT mainVS(VS_INPUT Input)
     return Output;
 }
 
-
-float4 mainPS(PS_INPUT Input) : SV_TARGET
-{
-    const float4 Albedo = g_txColor.Sample(g_Sample, Input.uv + UVOffset) * BaseColor;
-    const float3 N = normalize(Input.normal);
-    if (LightDebugMode == 1)
-    {
-        uint Count = TileLightIndices[GetTileBase(Input.position)];
+float4 mainPS(PS_INPUT Input) : SV_TARGET {
+    const float2 UV = { Input.uv + UVOffset };
+    const float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
+#if !defined(EDITOR_ARROW_SHADER)
+    if (LightDebugMode == 1 && NumTilesX > 0) {
+        const uint Count = { TileLightIndices[GetTileBase(Input.position)] };
         return float4(lerp(Albedo.rgb * 0.2f, HeatColor(Count), 0.7f), 1.0f);
     }
+#endif
+
+    const float3 VertexNormal = { normalize(Input.normal) };
+#if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG) || defined(WORLD_NORMAL)
+    const float3 T = { normalize(Input.tangent.xyz - VertexNormal * dot(VertexNormal, Input.tangent.xyz)) };
+    const float3 B = { cross(VertexNormal, T) * (Input.tangent.w < 0.0f ? -1.0f : 1.0f) };
+    const float3 TangentNormal = { NormalTexture.Sample(g_Sample, UV).xyz * 2.0f - 1.0f };
+    const float3 N = { normalize(T * TangentNormal.x + B * -TangentNormal.y + VertexNormal * TangentNormal.z) };
+#endif
 
     // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
-    const float Alpha = bOpaque > 0.5f ? 1.0f : Albedo.a;
+    const float Alpha = { bOpaque > 0.5f ? 1.0f : Albedo.a };
 
-#if LIGHTING_MODEL_UNLIT 
-    return float4(Albedo.rgb, Alpha); // 조명 없이 표면색 그대로
+#if LIGHTING_MODEL_UNLIT
+    return float4(Albedo.rgb, Alpha);
 #elif WORLD_NORMAL
     return float4(N * 0.5f + 0.5f, 1.0f);
 #else
-    float3 Lighting = CalcAmbient();
-    float3 Specular = 0.f;
+    float3 Lighting = { CalcAmbient() };
+    float3 Specular = { 0.0f, 0.0f, 0.0f };
+
 #if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG)
-    float3 V = normalize(CameraWorldPos - Input.worldPos);
-    FLightContribution Contribution = CalcLighting(N, V, Input.worldPos, Shininess, Input.position, true);
+    const float3 V = { normalize(CameraWorldPos - Input.worldPos) };
+    const FLightContribution Contribution = { CalcLighting(N, V, Input.worldPos, Shininess, Input.position, true) };
     Lighting += Contribution.Diffuse;
     Specular = Contribution.Specular;
 #elif LIGHTING_MODEL_GOURAUD
     Lighting += Input.vertexLighting;
 #endif
+
     return float4(Albedo.rgb * Lighting + Specular, Alpha);
 #endif
 }

@@ -15,10 +15,20 @@
 #include "UObject/UObjectGlobals.h"
 
 #include "Render/ImageLoader.h"
+#include <cctype>
 
 
 namespace
 {
+	FString GetAssetExtension(const FString& Path) {
+		const std::u8string UTF8Path{ Path.begin(), Path.end() };
+		FString Extension{ std::filesystem::path{ UTF8Path }.extension().string() };
+		for (char& Character : Extension) {
+			Character = static_cast<char>(std::tolower(static_cast<unsigned char>(Character)));
+		}
+		return Extension;
+	}
+
 	UStaticMesh* CreateStaticMesh(const FStaticMeshData* MeshData)
 	{
 		if (!MeshData || !MeshData->Vertices.Num() || !MeshData->Indices.Num())
@@ -45,7 +55,9 @@ namespace
 			Optimized.Sections.Add(DefaultSection);
 		}
 
+		Optimized.BuildTangentSpace();
 		Optimized.OptimizeTriangleOrderForVertexCache();
+
 		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertex) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertex));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(Optimized.Indices.GetData(), static_cast<uint32>(Optimized.Indices.size()));
 		if (VB == nullptr || IB == nullptr) return nullptr;
@@ -87,6 +99,13 @@ namespace
 					Material->Textures[0] = Texture;
 				}
 			}
+
+			if (!Slot.mNormalTexturePath.empty()) {
+				if (UTexture2D* NormalTexture{ UAssetManager::Get().LoadTexture(Slot.mNormalTexturePath) }) {
+					Material->Textures[1] = NormalTexture;
+				}
+			}
+
 			Mesh->Materials.Add(Material);
 		}
 
@@ -152,35 +171,28 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 	}
 }
 
-void UAssetManager::LoadAsset(const FString& Key, const FString& Path)
-{
-	FString Extension = fs::path(Path).extension().string();
-	if (Extension == ".png")
-	{
-		if (UTexture2D* Texture = LoadTexture(Path))
-		{
+void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
+	const FString Extension{ GetAssetExtension(Path) };
+	if (Extension == ".png" || Extension == ".dds") {
+		if (UTexture2D* Texture{ LoadTexture(Path) }) {
 			AssetMap[Key] = Texture;
 		}
 	}
-	if (Extension == ".json")
-	{
-		FString TexturePath = fs::path(Path).replace_extension(".png").string();
-		if (UFont* Font = LoadFontAtlas(Path, TexturePath))
-		{
+	if (Extension == ".json") {
+		const FString TexturePath{ fs::path{ Path }.replace_extension(".png").string() };
+		if (UFont* Font{ LoadFontAtlas(Path, TexturePath) }) {
 			AssetMap[Key] = Font;
 		}
 	}
-	if (Extension == ".obj")
-	{
+	if (Extension == ".obj") {
 		LoadObjStaticMesh(Path);
 	}
 }
 
-void UAssetManager::CreateDefaultTextures()
-{
+void UAssetManager::CreateDefaultTextures() {
 	// 텍스처가 지정되지 않은 머티리얼이 검게 나오지 않도록 하는 1x1 흰색 텍스처.
 	// 셰이더에서 곱해도 결과가 변하지 않으므로 "텍스처 없음"의 기본값으로 쓴다.
-	const uint32 WhitePixel = 0xFFFFFFFF;
+	const uint32 WhitePixel{ 0xFFFFFFFF };
 
 	D3D11_TEXTURE2D_DESC Desc{};
 	Desc.Width = 1;
@@ -192,17 +204,28 @@ void UAssetManager::CreateDefaultTextures()
 	Desc.Usage = D3D11_USAGE_IMMUTABLE;
 	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
-	TUniquePtr<FTexture2D> Resource = RenderCommand::CreateTexture2D(Desc, &WhitePixel);
-	if (!Resource)
-	{
+	TUniquePtr<FTexture2D> Resource{ RenderCommand::CreateTexture2D(Desc, &WhitePixel) };
+	if (!Resource) {
 		return;
 	}
 
-	UTexture2D* WhiteTexture = NewObject<UTexture2D>();
+	UTexture2D* WhiteTexture{ NewObject<UTexture2D>() };
 	WhiteTexture->SetResource(std::move(Resource));
 	WhiteTexture->SetPath("WhiteTexture");
 
 	AssetMap["WhiteTexture"] = WhiteTexture;
+
+	const FVector4 NormalPixel{ 0.5f, 0.5f, 1.0f, 1.0f };
+	Desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	TUniquePtr<FTexture2D> NormalResource{ RenderCommand::CreateTexture2D(Desc, &NormalPixel) };
+	if (!NormalResource) {
+		return;
+	}
+
+	UTexture2D* FlatNormalTexture{ NewObject<UTexture2D>() };
+	FlatNormalTexture->SetResource(std::move(NormalResource));
+	FlatNormalTexture->SetPath("FlatNormalTexture");
+	AssetMap["FlatNormalTexture"] = FlatNormalTexture;
 }
 
 void UAssetManager::CreateDefaultMeshes()
@@ -276,13 +299,11 @@ void UAssetManager::CreateDefaultMeshes()
 	RegisterAsset("ParticleQuad", Mesh);
 }
 
-void UAssetManager::CreateDefaultMaterial()
-{
-	UMaterial* DefaultMat = NewObject<UMaterial>();
+void UAssetManager::CreateDefaultMaterial() {
+	UMaterial* DefaultMat{ NewObject<UMaterial>() };
 	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/UberLit.hlsl");
 	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
-
-
+	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("FlatNormalTexture"));
 	DefaultMat->ParamLayout = EMaterialParamLayout::StaticMesh;
 	DefaultMat->ParamBuffer = RenderCommand::CreateConstantBuffer(sizeof(FStaticMeshMaterialParams));
 	RegisterAsset("DefaultMaterial", DefaultMat);
@@ -300,13 +321,12 @@ void UAssetManager::CreateParticleMaterial()
 	RegisterAsset("SubUVMaterial", ParticleMat);
 }
 
-void UAssetManager::CreateEditorArrowMaterial()
-{
-	UMaterial* Base = GetAssetByPath<UMaterial>("DefaultMaterial");
-	UMaterial* ArrowMat = UMaterial::CreateInstance(Base);
-	ArrowMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl_UNLIT");
-	ArrowMat->BaseColor = FVector4(1, 1, 1, 1);		// 흰색
-	RegisterAsset("EditorArrowMaterial", ArrowMat);
+void UAssetManager::CreateEditorArrowMaterial() {
+	UMaterial* BaseMaterial{ GetAssetByPath<UMaterial>("DefaultMaterial") };
+	UMaterial* ArrowMaterial{ UMaterial::CreateInstance(BaseMaterial) };
+	ArrowMaterial->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/EditorArrowShader.hlsl");
+	ArrowMaterial->BaseColor = FVector4{ 1.0f, 1.0f, 1.0f, 1.0f };
+	RegisterAsset("EditorArrowMaterial", ArrowMaterial);
 }
 
 void UAssetManager::Shutdown()
@@ -321,32 +341,38 @@ void UAssetManager::RegisterAsset(const FString& Key, URenderAsset* Asset)
 	AssetMap[Key] = Asset;
 }
 
-UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool bGenerateMips)
-{
-	if (URenderAsset** Found = AssetMap.Find(InPath))
-	{
+UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool GenerateMips) {
+	if (URenderAsset** Found{ AssetMap.Find(InPath) }) {
 		return Cast<UTexture2D>(*Found);
 	}
 
-	FImageData Data = ImageLoader::LoadAuto(InPath);
-	if (!Data.IsValid()) return nullptr;
+	TUniquePtr<FTexture2D> Resource{};
+	if (GetAssetExtension(InPath) == ".dds") {
+		Resource = RenderCommand::LoadDDSTexture(InPath);
+	} else {
+		const FImageData Data{ ImageLoader::LoadAuto(InPath) };
+		if (!Data.IsValid()) {
+			return nullptr;
+		}
 
-	D3D11_TEXTURE2D_DESC Desc{};
-	Desc.Width = Data.Width;
-	Desc.Height = Data.Height;
-	Desc.ArraySize = 1;
-	Desc.Format = Data.Format;              // 로더가 정한 포맷 (.hdr이면 float)
-	Desc.SampleDesc.Count = 1;
-	Desc.MipLevels = bGenerateMips ? 0 : 1;
-	Desc.Usage = bGenerateMips ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
-	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | (bGenerateMips ? D3D11_BIND_RENDER_TARGET : 0);
-	Desc.MiscFlags = bGenerateMips ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0;
+		D3D11_TEXTURE2D_DESC Desc{};
+		Desc.Width = Data.Width;
+		Desc.Height = Data.Height;
+		Desc.ArraySize = 1;
+		Desc.Format = Data.Format;
+		Desc.SampleDesc.Count = 1;
+		Desc.MipLevels = GenerateMips ? 0 : 1;
+		Desc.Usage = GenerateMips ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
+		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | (GenerateMips ? D3D11_BIND_RENDER_TARGET : 0);
+		Desc.MiscFlags = GenerateMips ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0;
+		Resource = RenderCommand::CreateTexture2D(Desc, Data);
+	}
 
-	TUniquePtr<FTexture2D> Resource = RenderCommand::CreateTexture2D(Desc, Data);
+	if (!Resource || !Resource->GetSRV()) {
+		return nullptr;
+	}
 
-	if (!Resource) return nullptr;
-
-	UTexture2D* Asset = NewObject<UTexture2D>();
+	UTexture2D* Asset{ NewObject<UTexture2D>() };
 	Asset->SetResource(std::move(Resource));
 	RegisterAsset(InPath, Asset);
 
@@ -406,6 +432,7 @@ bool UAssetManager::ReorientStaticMesh(UStaticMesh& Mesh, const std::function<FV
 		Bounds.Max = FVector(std::max(Bounds.Max.X, Vertex.Position.X), std::max(Bounds.Max.Y, Vertex.Position.Y), std::max(Bounds.Max.Z, Vertex.Position.Z));
 	}
 	Data.AABB = Bounds;
+	Data.BuildTangentSpace();
 
 	// 인덱스는 그대로다 (회전은 삼각형 감기 방향을 바꾸지 않는다). 정점 버퍼만 다시 올린다.
 	TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Data.Vertices.GetData(),
@@ -452,6 +479,8 @@ FLODGenerateResult UAssetManager::GenerateStaticMeshLODs(UStaticMesh& Mesh, cons
 	{
 		FStaticMeshLODResource Resource;
 		Resource.Data = std::move(Data);
+
+		Resource.Data.BuildTangentSpace();
 		Resource.Data.OptimizeTriangleOrderForVertexCache();
 
 		Resource.VertexBuffer = RenderCommand::CreateStaticVertexBuffer(
