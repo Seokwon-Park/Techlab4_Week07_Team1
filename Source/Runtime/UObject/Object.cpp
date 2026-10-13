@@ -141,14 +141,6 @@ void UObject::Serialize(json& Handle, bool bIsLoading)
 				else Handle[Property.Name] = Value;
 				break;
 			}
-			case EPropertyType::Color32:
-			{
-				FColor& Value = *static_cast<FColor*>(Ptr);
-				if (bIsLoading) Value = Handle[Property.Name].get<uint32>();	//uint8 * 4
-				else Handle[Property.Name] = Value.Bits;
-				break;
-				
-			}
 			case EPropertyType::Transform:
 			{
 				FTransform& Value = *static_cast<FTransform*>(Ptr);

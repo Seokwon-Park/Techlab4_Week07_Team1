@@ -100,28 +100,3 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor.ToVector4());
 }
-
-void USpotLightComponent::FillLightData(FLightRenderData& Out) const
-{
-    const FVector Dir = FTransform(GetWorldRotation(), GetWorldLocation()).GetForward();
-    const FVector4 Color = GetLightColor().ToVector4();
-	const FVector Position = GetWorldLocation();
-
-    Out.PositionRadius = FVector4(Position.X, Position.Y, Position.Z, GetAttenuationRadius());
-    Out.ColorIntensity = FVector4(
-        Color.X,
-        Color.Y,
-        Color.Z,
-        std::max<float>(GetIntensity(), 0.0f)
-    );
-
-    Out.DirectionType = FVector4(Dir.X, Dir.Y, Dir.Z, (float)ELightType::Spot);
-    Out.Params = FVector4(
-		std::max<float>(GetLightFalloffExponent(), 0.001f),
-		std::cosf(FMath::DegreesToRadians(GetInnerConeAngle())),
-		std::cosf(FMath::DegreesToRadians(GetOuterConeAngle())),
-		std::max<float>(GetFalloff(), 0.001f)
-	);
-
-    Out.Extent = FVector4(0, 0, 0, 0);
-}

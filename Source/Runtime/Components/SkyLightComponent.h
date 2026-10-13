@@ -13,8 +13,6 @@ public:
 
 	ELightType GetLightType() const { return ELightType::Sky; }
 	
-	void FillLightData(FLightRenderData& Out) const override;
-
 protected:
 private:
 };

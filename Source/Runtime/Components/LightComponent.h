@@ -2,7 +2,6 @@
 
 #include "LightComponentBase.h"
 #include "Render/LineBatcher.h"
-#include "Render/LightRenderData.h"
 
 class ULightComponent : public ULightComponentBase
 {

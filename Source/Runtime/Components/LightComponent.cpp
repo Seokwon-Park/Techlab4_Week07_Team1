@@ -10,18 +10,6 @@ void ULightComponent::DrawDebug(FLineBatcher* LineBatcher) const {}
 
 void ULightComponent::CreateRenderState()
 {
-    Super::CreateRenderState();
-    GetWorld()->GetScene().RegisterLight(this);
-}
-
-void ULightComponent::DestroyRenderState()
-{
-    GetWorld()->GetScene().UnregisterLight(this);
-	Super::DestroyRenderState();
-}
-
-void ULightComponent::CreateRenderState()
-{
 	Super::CreateRenderState();
 	GetWorld()->GetScene().AddLight(this);
 }

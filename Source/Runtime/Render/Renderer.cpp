@@ -463,7 +463,7 @@ void FRenderer::EndObjectConstants()
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
-	RenderCommand::BindShaderProgram(ResolveShader(material));
+	RenderCommand::BindShaderProgram(material->Shader);
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
@@ -532,13 +532,6 @@ void FRenderer::UpdatePerObjectConstants(const FMatrix& World)
 
 	RenderCommand::UpdateBufferData(PerObjectCB.get(), &Constants);
 }
-
-void FRenderer::SetLights(const FLightConstants& LightData)
-{
-	LightConstantsData = LightData;
-	RenderCommand::UpdateBufferData(LightCB.get(), &LightConstantsData, sizeof(FLightConstants));
-}
-
 
 
 void FRenderer::SetLighting(const FLightingConstants& LightingConstants)

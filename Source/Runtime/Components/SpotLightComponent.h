@@ -19,7 +19,6 @@ public:
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 	ELightType GetLightType() const { return ELightType::Spot; }
-	void FillLightData(FLightRenderData& Out) const override;
 
 	float GetInnerConeAngle() const { return InnerConeAngle; }
 	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }

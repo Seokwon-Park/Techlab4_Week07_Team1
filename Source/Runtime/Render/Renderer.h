@@ -6,7 +6,6 @@
 
 #include "RenderingInfo.h"
 #include "Occlusion/GPUOcclusion.h"
-#include "LightRenderData.h"
 #include "RenderEnums.h"
 #include "Material.h"
 

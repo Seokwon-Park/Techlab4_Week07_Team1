@@ -17,7 +17,7 @@ public:
 	float GetHeight() const;
 
 private:
-	float HalfWidth;
-	float HalfHeight;
+	float HalfWidth = 6.0f;
+	float HalfHeight = 6.0f;
 
 };
