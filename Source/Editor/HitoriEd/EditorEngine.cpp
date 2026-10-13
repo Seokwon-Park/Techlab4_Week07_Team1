@@ -1041,6 +1041,7 @@ void UEditorEngine::DestroyPIEWindow()
 	PIEColorTarget.reset();
 	PIEDepthTarget.reset();
 	PIEFxaaTarget.reset();
+	PIEHDRTarget.reset();
 	PIETargetWidth = 0;
 	PIETargetHeight = 0;
 	bPIEWindowRendered = false;
@@ -1087,6 +1088,10 @@ bool UEditorEngine::UpdatePIEWindowTargets()
 		Desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 		PIEDepthTarget = RenderCommand::CreateTexture2D(Desc);
 
+		Desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		PIEHDRTarget = RenderCommand::CreateTexture2D(Desc);
+
 		PIERenderingInfo.ColorRenderTargets.Reset();
 		PIERenderingInfo.ViewportSetting.Width = Width;
 		PIERenderingInfo.ViewportSetting.Height = Height;
@@ -1126,6 +1131,13 @@ FTexture2D* UEditorEngine::GetFxaaTargetForView(const int32 ViewIndex) const
 	if (ViewIndex == FMultipleViewportsAdapter::ExternalViewIndex)
 		return PIEFxaaTarget.get();
 	return ViewportsPanel->GetFxaaTarget(ViewIndex);
+}
+
+FTexture2D* UEditorEngine::GetHDRTargetForView(const int32 ViewIndex) const
+{
+	if (ViewIndex == FMultipleViewportsAdapter::ExternalViewIndex)
+		return PIEHDRTarget.get();
+	return ViewportsPanel->GetHDRTarget(ViewIndex);
 }
 
 

@@ -70,6 +70,12 @@ FTexture2D* FViewportsPanel::GetFxaaTarget(const int32 ViewIndex) const
 	return Slots[ViewIndex].FxaaTarget.get();
 }
 
+FTexture2D* FViewportsPanel::GetHDRTarget(const int32 ViewIndex) const
+{
+	assert(ViewIndex >= 0 && ViewIndex < 4);
+	return Slots[ViewIndex].HDRTarget.get();
+}
+
 // 마우스 위치에서 패널 원점을 빼 로컬 좌표로 바꾼다.
 FVector2 FViewportsPanel::GetLocalMousePosition() const
 {
@@ -533,6 +539,11 @@ void FViewportsPanel::ResizeSlot(FViewSlot& Slot, const uint32 Width, const uint
 	Desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 	Desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	Slot.DepthTarget = RenderCommand::CreateTexture2D(Desc);
+
+	// HDR Target
+	Desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;	
+	Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	Slot.HDRTarget = RenderCommand::CreateTexture2D(Desc);
 
 	Slot.Width = Width;
 	Slot.Height = Height;
