@@ -122,7 +122,8 @@ void UBillboardComponent::GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) con
 	}
 
 	const FVector WorldPos = GetWorldLocation();
-	const FVector WorldScale = GetWorldScale3D();
+	// const FVector WorldScale = GetWorldScale3D();
+	const float S = IconSize;
 
 	// Y -> Billboard Right
 	OutWorldMatrix->M[0][0] = BbFwd.X;
@@ -143,9 +144,9 @@ void UBillboardComponent::GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) con
 	OutWorldMatrix->M[2][3] = 0.0f;
 
 	// Position
-	OutWorldMatrix->M[3][0] = WorldPos.X;
-	OutWorldMatrix->M[3][1] = WorldPos.Y;
-	OutWorldMatrix->M[3][2] = WorldPos.Z;
+	OutWorldMatrix->M[3][0] = S;
+	OutWorldMatrix->M[3][1] = S;
+	OutWorldMatrix->M[3][2] = S;
 	OutWorldMatrix->M[3][3] = 1.0f;
 }
 

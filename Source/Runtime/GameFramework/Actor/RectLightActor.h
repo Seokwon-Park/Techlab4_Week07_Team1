@@ -2,6 +2,7 @@
 
 #include "Components/RectLightComponent.h"
 #include "GameFramework/Actor/LightActorBase.h"
+#include "Components/StaticMeshComponent.h"
 
 class ARectLightActor : public ALightActorBase
 {
@@ -19,5 +20,6 @@ public:
 
 private:
     URectLightComponent* RectLightComponent = nullptr;
+	UStaticMeshComponent* ArrowComponent = nullptr;
 
 };

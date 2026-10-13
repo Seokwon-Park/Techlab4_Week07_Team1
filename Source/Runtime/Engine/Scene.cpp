@@ -4,6 +4,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/RectLightComponent.h"
 
 void FScene::AddPrimitive(UPrimitiveComponent* Component)
 {
@@ -167,6 +168,30 @@ void FScene::UpdateLights(FRenderer* Renderer)
 			Info.Intensity = Point->GetIntensity();
 			Info.FalloffExponent = Point->GetFalloff();
 			PointLights.Add(Info);
+		}
+		else if (URectLightComponent* Rect = Cast<URectLightComponent>(Light))
+		{
+			if (Constants.NumRectLights >= MaxRectLights)
+				continue;
+
+			FTransform Transform;
+			Transform.Rotation = Rect->GetWorldRotation();
+			const FLinearColor Color(Rect->GetLightColor());
+
+			FRectLightInfo& Info = Constants.RectLights[Constants.NumRectLights++];
+			Info.Position   = Rect->GetWorldLocation();
+			Info.Radius     = Rect->GetAttenuationRadius();
+			Info.Color      = FVector(Color.R, Color.G, Color.B);
+			Info.Intensity  = Rect->GetIntensity();
+			Info.Direction  = Transform.GetForward();
+			Info.Right      = Transform.GetRight();
+			Info.HalfWidth  = Rect->GetWidth() * 0.5f;
+			Info.HalfHeight = Rect->GetHeight() * 0.5f;
+
+			const float AngleRad = FMath::DegreesToRadians(FMath::Clamp(Rect->GetBarnDoorAngle(), 0.0f, 90.0f));
+			Info.BarnDoorCos    = std::cos(AngleRad);
+			Info.BarnDoorSin    = std::sin(AngleRad);
+			Info.BarnDoorLength = std::max(Rect->GetBarnDoorLength(), 0.0f);
 		}
 	}
 

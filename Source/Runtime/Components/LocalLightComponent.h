@@ -16,5 +16,5 @@ public:
 	void SetAttenuationRadius(float InAttenuationRadius) { AttenuationRadius = InAttenuationRadius; }
 
 private:
-	float AttenuationRadius = 10.0f;
+	float AttenuationRadius = 5.0f;
 };
