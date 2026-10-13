@@ -1,9 +1,50 @@
 #include "EnginePCH.h"
 #include "RenderUtil.h"
 
+namespace
+{
+	const char* GetShaderTarget(EShaderType Type)
+	{
+		switch (Type)
+		{
+		case EShaderType::Vertex:
+			return "vs_5_0";
+			break;
+		case EShaderType::Pixel:
+			return "ps_5_0";
+			break;
+		case EShaderType::Compute:
+			return "cs_5_0";
+			break;
+		default:
+			return "";
+			break;
+		}
+	}
+
+	const char* GetShaderPrefix(EShaderType Type)
+	{
+		switch (Type)
+		{
+		case EShaderType::Vertex:
+			return "_VS.cso";
+			break;
+		case EShaderType::Pixel:
+			return  "_PS.cso";
+			break;
+		case EShaderType::Compute:
+			return  "_CS.cso";
+			break;
+		default:
+			return "";
+			break;
+		}
+	}
+}
+
 FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType, const D3D_SHADER_MACRO* Macros)
 {
-	const char* Target = (ShaderType == EShaderType::Vertex) ? "vs_5_0" : "ps_5_0";
+	const char* Target = GetShaderTarget(ShaderType);
 
 	uint32 Flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
@@ -63,7 +104,7 @@ FShaderByteCode RenderUtil::LoadByteCode(const FString& CsoPath)
 FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const D3D_SHADER_MACRO* Macros)
 {
 	const fs::path Rel = fs::relative(ShaderPath, "Resources/Shader");
-	const char* Suffix = (ShaderType == EShaderType::Vertex) ? "_VS.cso" : "_PS.cso";
+	const char* Suffix = GetShaderPrefix(ShaderType);
 	FString MacroSuffix;
 	while (Macros && Macros->Name)
 	{
@@ -79,7 +120,7 @@ FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType
 // .cso 파일이 최신 컴파일인지 비교한다.
 bool RenderUtil::IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath)
 {
-	std::error_code Ec;  
+	std::error_code Ec;
 	if (!fs::exists(CsoPath, Ec)) return false;
 
 	const auto SrcTime = fs::last_write_time(ShaderPath, Ec);

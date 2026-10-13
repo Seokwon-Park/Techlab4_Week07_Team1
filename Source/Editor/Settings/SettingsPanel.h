@@ -44,6 +44,8 @@ struct FEditorSettings
     bool bViewRotationSaved[4]{};
 	// 조명 모델
 	int32 LightingModel = 1;	// 0 Gouraud 1 Lambert 2 Blinn-Phong
+
+	int32 LightDebugMode = 0;
 };
 
 

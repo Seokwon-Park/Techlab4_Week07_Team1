@@ -1,5 +1,9 @@
 #pragma pack_matrix(row_major)
 
+#define TILE_SIZE 16
+#define MAX_LIGHTS_PER_TILE 255
+#define TILE_STRIDE (MAX_LIGHTS_PER_TILE + 1)
+
 // 조명 모델은 C++(FRenderResourceManager::LoadUberLit)이 매크로로 하나만 넘긴다.
 // 아무 매크로 없이 컴파일될 때(기존 머티리얼이 쓰는 기본 키)만 Lambert를 켠다.
 #if !defined(LIGHTING_MODEL_UNLIT) && !defined(LIGHTING_MODEL_GOURAUD) && \
@@ -50,7 +54,7 @@ struct FSpotLightInfo
     float2 Padding;
 };
 
-struct FRectLightInfo
+struct FLocalLightInfo
 {
     float3 Position;
     float Radius;
@@ -58,9 +62,12 @@ struct FRectLightInfo
     float Intensity;
     float3 Direction;
     float InnerConeCos;
+    float3 Right;
     float FalloffExponent;
-    float2 Padding;
     float OuterConeCos;
+    float HalfWidth;
+    float HalfHeight;
+    uint Type;
 };
 
 
@@ -91,12 +98,21 @@ cbuffer Lighting : register(b4)
 {
     FAmbientLightInfo Ambient;
     FDirectionalLightInfo Directional;
-    FPointLightInfo PointLights[NUM_POINT_LIGHT];
     FSpotLightInfo SpotLights[NUM_SPOT_LIGHT];
     uint NumPointLights;
     uint NumSpotLights;
     uint2 LightingPadding;
 };
+
+cbuffer TileLighting : register(b5)
+{
+    uint NumTilesX;
+    uint LightDebugMode;
+    uint2 TileLightingPadding;
+};
+
+StructuredBuffer<FPointLightInfo> PointLights : register(t10);
+StructuredBuffer<uint> TileLightIndices : register(t12);
 
 Texture2D g_txColor : register(t0);
 Texture2D NormalTexture : register(t1);
@@ -198,6 +214,23 @@ FLightContribution CalcSpot(FSpotLightInfo S, float3 N, float3 V, float3 WorldPo
     return ShadeLight(N, L, V, Radiance, InShininess);
 }
 
+uint GetTileBase(float4 SVPosition)
+{
+    uint2 Tile = (uint2) SVPosition.xy / TILE_SIZE;
+    return (Tile.y * NumTilesX + Tile.x) * TILE_STRIDE;
+}
+
+float3 HeatColor(uint Count)
+{
+    if (Count == 0)
+        return float3(0, 0, 0);
+    if (Count >= 32)
+        return float3(1, 1, 1);
+
+    float t = Count / 8.0f;
+    return saturate(float3(t * 2 - 0.5, 1 - abs(t * 2 - 1), 1.5 - t * 2));
+}
+
 //float3 CalcRect(FRectLightInfo R, float3 N, float3 WorldPos)
 //{
 //    const float3 Up = cross(R.Direction, R.Right);
@@ -218,18 +251,28 @@ FLightContribution CalcSpot(FSpotLightInfo S, float3 N, float3 V, float3 WorldPo
 //}
 
 
-FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess)
-{
+// bTiled = true면 SVPosition이 속한 타일의 PointLight만, false면 전체 PointLight를 순회한다.
+// VS(Gouraud)는 픽셀 위치가 없어 타일을 쓸 수 없으므로 false로 호출한다.
+FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess, float4 SVPosition, bool Tiled) {
     // Directional Light는 초기에 한 번만 계산
-    FLightContribution Contribution = CalcDirectional(N, V, InShininess);
+    FLightContribution Contribution = { CalcDirectional(N, V, InShininess) };
+    uint PointLightCount = { NumPointLights };
+    uint TileBase = { 0 };
+    bool UseTileList = { false };
+    if (Tiled && NumTilesX > 0 && LightDebugMode != 2) {
+        TileBase = GetTileBase(SVPosition);
+        const uint Count = { TileLightIndices[TileBase] };
+        if (Count < MAX_LIGHTS_PER_TILE) {
+            PointLightCount = Count;
+            UseTileList = true;
+        }
+    }
 
-    // 모든 PointLight의 Contribution을 누적
-    for (uint p = 0; p < NumPointLights; ++p)
-    {
-        FLightContribution Temp = CalcPoint(PointLights[p], N, V, WorldPos, InShininess);
+    for (uint Index = { 0 }; Index < PointLightCount; ++Index) {
+        const uint LightIndex = { UseTileList ? TileLightIndices[TileBase + 1 + Index] : Index };
+        const FLightContribution Temp = { CalcPoint(PointLights[LightIndex], N, V, WorldPos, InShininess) };
         Contribution.Diffuse += Temp.Diffuse;
         Contribution.Specular += Temp.Specular;
-
     }
     // 모든 SpotLight의 Contribution을 누적
     for (uint s = 0; s < NumSpotLights; ++s)
@@ -258,7 +301,7 @@ PS_INPUT mainVS(VS_INPUT Input)
     Output.color = Input.color;
 #if LIGHTING_MODEL_GOURAUD
     float3 V = normalize(CameraWorldPos - Output.worldPos);
-    FLightContribution Contribution = CalcLighting(normalize(Output.normal), V, Output.worldPos, 1);
+    FLightContribution Contribution = CalcLighting(normalize(Output.normal), V, Output.worldPos, 1, Output.position, false);
     Output.vertexLighting = Contribution.Diffuse;
 #endif
     return Output;
@@ -267,6 +310,13 @@ PS_INPUT mainVS(VS_INPUT Input)
 float4 mainPS(PS_INPUT Input) : SV_TARGET {
     const float2 UV = { Input.uv + UVOffset };
     const float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
+#if !defined(EDITOR_ARROW_SHADER)
+    if (LightDebugMode == 1 && NumTilesX > 0) {
+        const uint Count = { TileLightIndices[GetTileBase(Input.position)] };
+        return float4(lerp(Albedo.rgb * 0.2f, HeatColor(Count), 0.7f), 1.0f);
+    }
+#endif
+
     const float3 VertexNormal = { normalize(Input.normal) };
 #if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG) || defined(WORLD_NORMAL)
     const float3 T = { normalize(Input.tangent.xyz - VertexNormal * dot(VertexNormal, Input.tangent.xyz)) };
@@ -288,7 +338,7 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET {
 
 #if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG)
     const float3 V = { normalize(CameraWorldPos - Input.worldPos) };
-    const FLightContribution Contribution = { CalcLighting(N, V, Input.worldPos, Shininess) };
+    const FLightContribution Contribution = { CalcLighting(N, V, Input.worldPos, Shininess, Input.position, true) };
     Lighting += Contribution.Diffuse;
     Specular = Contribution.Specular;
 #elif LIGHTING_MODEL_GOURAUD

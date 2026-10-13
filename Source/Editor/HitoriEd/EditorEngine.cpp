@@ -401,6 +401,7 @@ void UEditorEngine::RenderMultipleViewports()
 	UpdatePIEViewCamera();
 
 	UWorld* CapturedWorld = nullptr;
+	Renderer->SetLightDebugMode(SettingsPanel->GetSettings().LightDebugMode);
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
 	{
 		const bool bActive = MultipleViewportsAdapter.IsViewActive(ViewIndex);
@@ -570,6 +571,11 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
 		Renderer->RenderQueueSorting(RenderQueue, ViewProjection, ViewCameraLocation);
+		Renderer->CullLights(
+			MultipleViewportsAdapter.GetEngineView(ViewIndex),
+			MultipleViewportsAdapter.GetEngineProjection(ViewIndex),
+			ViewRenderingInfo.ViewportSetting.Width,
+			ViewRenderingInfo.ViewportSetting.Height);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
