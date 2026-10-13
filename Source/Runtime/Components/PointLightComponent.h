@@ -17,7 +17,6 @@ public:
 
 	float GetFalloff() const { return LightFalloffExponent; }
 	void SetFalloff(float InFalloff) { LightFalloffExponent = InFalloff; }
-	void DrawDebug(FLineBatcher* LineBatcher) const;
 
 protected:
 	float LightFalloffExponent = 1.0f;
