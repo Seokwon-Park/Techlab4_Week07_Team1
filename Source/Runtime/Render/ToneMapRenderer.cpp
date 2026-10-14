@@ -13,6 +13,8 @@ bool FToneMapRenderer::Init()
 		return false;
 	}
 
+	ConstantBuffer = RenderCommand::CreateConstantBuffer(sizeof(FToneMapConstants));
+
 	PipelineState.Shader = ToneMapShader;
 	PipelineState.Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	// 결과로 덮어쓰는 후처리라 블렌딩,깊이 테스트가 필요 없음
@@ -21,17 +23,22 @@ bool FToneMapRenderer::Init()
 	return true;
 }
 
-void FToneMapRenderer::OnRender(FTexture2D* InputTexture)
+// HDR(선형) 입력을 톤 매핑·sRGB 인코딩해 현재 바인딩된 LDR 타깃에 쓴다.
+void FToneMapRenderer::OnRender(FTexture2D* InputTexture, EToneMapMode Mode)
 {
-	// 셰이더가 실제로 샘플링하는 텍스처 크기로 한 픽셀의 UV 크기를 구한다
-	const uint32 Width = InputTexture->GetWidth();
-	const uint32 Height = InputTexture->GetHeight();
-	if (Width == 0 || Height == 0)
+	if (!InputTexture || !ConstantBuffer)
+		return;
+	if (InputTexture->GetWidth() == 0 || InputTexture->GetHeight() == 0)
 		return;
 
+	FToneMapConstants Constants{};
+	Constants.Exposure = Exposure;
+	Constants.Mode = static_cast<uint32>(Mode);
+
 	RenderCommand::BindPipelineState(PipelineState);
+	RenderCommand::UpdateBufferData(ConstantBuffer.get(), &Constants);
+	RenderCommand::BindConstantBuffer(0, ConstantBuffer.get(), EShaderBindFlagBits::Pixel);
 	RenderCommand::BindShaderResource(0, InputTexture, EShaderBindFlagBits::Pixel);
-	RenderCommand::BindSamplerState(0, ESamplerState::LinearClamp, EShaderBindFlagBits::Pixel);
 
 	RenderCommand::Draw(3);
 }

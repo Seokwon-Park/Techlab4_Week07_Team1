@@ -835,9 +835,20 @@ void UEditorEngine::RenderToneMapPass(const int32 ViewIndex, const FRenderingInf
 	PassInfo.ColorRenderTargets.Add(ColorDesc);
 	PassInfo.DepthStencil.Texture = nullptr;
 
-	//장면 텍스처를 읽어서 임시 텍스처에 ToneMap 결과를 그린다
+	// 뷰모드에 따라 톤 매핑 방식을 고른다.
+	// - Lit: 노출 → ACES → sRGB 인코딩
+	// - Unlit: 텍스처 원본 색이 보이도록 sRGB 인코딩만
+	// - WorldNormal·Light Heatmap: 셰이더가 쓴 디버그 값을 그대로
+	EToneMapMode ToneMapMode = EToneMapMode::ACES;
+	const EViewMode ViewMode = MultipleViewportsAdapter.GetViewMode(ViewIndex);
+	if (ViewMode == EViewMode::WorldNormal || SettingsPanel->GetSettings().LightDebugMode == 1)
+		ToneMapMode = EToneMapMode::Passthrough;
+	else if (ViewMode == EViewMode::Unlit)
+		ToneMapMode = EToneMapMode::EncodeOnly;
+
+	//HDR 장면 텍스처를 읽어서 LDR 뷰 텍스처에 ToneMap 결과를 그린다
 	RenderCommand::BeginRenderPass(PassInfo);
-	ToneMapRenderer->OnRender(HDRColor);
+	ToneMapRenderer->OnRender(HDRColor, ToneMapMode);
 	RenderCommand::EndRenderPass(PassInfo);
 
 	// SceneColor가 SRV로 남아 있으면 Overlay 패스에서 RTV로 쓸 때 D3D가 강제로 해제하므로 먼저 비운다

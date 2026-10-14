@@ -70,6 +70,8 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 
 	// Light Component light 가져와서 IconParams로 전달
 	IconParams.Tint = TintSource ? TintSource->GetLightColor().ToVector4() : FVector4(1, 1, 1, 1);
+	// 에디터 아이콘은 Overlay 패스(톤 매핑 이후 LDR)에, 일반 빌보드는 HDR 씬에 그려진다.
+	IconParams.DecodeSRGB = bEditorIcon ? 0.0f : 1.0f;
 	FRenderPacket Packet;
 	Packet.Mesh = QuadMesh;
 	Packet.Material = Material;
