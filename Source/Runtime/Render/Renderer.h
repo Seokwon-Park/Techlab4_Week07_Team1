@@ -87,18 +87,12 @@ struct FSpotLightInfo
 
 struct FRectLightInfo
 {
-	FVector Position;
-	float Radius;
-	FVector Color;
-	float Intensity;
-	FVector Direction;
-	float InnerConeCos;
-	FVector Right;
-	float FalloffExponent;
-	float OuterConeCos;
-	float HalfWidth;
-	float HalfHeight;
-	float Padding;
+	FVector Position; float Radius;            	// 16
+	FVector Color; float Intensity;         	// 32
+	FVector Direction; float HalfWidth;         // 48  Direction = 로컬 +X (빛 진행 방향)
+	FVector Right; float HalfHeight;        	// 64  Right = 로컬 +Y
+	float BarnDoorCos; float BarnDoorSin;       
+	float BarnDoorLength; float Padding;		// 80
 };
 
 struct alignas(16) FLightingConstants
@@ -114,6 +108,8 @@ static_assert(sizeof(FAmbientLightInfo) == 16);
 static_assert(sizeof(FDirectionalLightInfo) == 32);
 static_assert(sizeof(FPointLightInfo) == 48);
 static_assert(sizeof(FSpotLightInfo) == 64);
+static_assert(sizeof(FRectLightInfo) == 80);
+
 //static_assert(sizeof(FLightingConstants) == 512);	// UberLit.hlsl cbuffer Lighting 크기 (fxc 리플렉션 기준)
 
 struct FSortEntry

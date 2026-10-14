@@ -11,6 +11,7 @@ void ALightActorBase::SetupLightRoot(ULightComponent* LightComponent, const FStr
 
     BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
     BillboardComponent->SetEditorIcon(true);
+    BillboardComponent->SetIconSize(2.0f);
     BillboardComponent->SetupAttachment(LightComponent);
     BillboardComponent->SetTintSource(LightComponent);
 

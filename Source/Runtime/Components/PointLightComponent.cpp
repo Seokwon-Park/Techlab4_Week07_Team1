@@ -22,11 +22,11 @@ namespace
         const FVector& Center,
         const FVector& AxisA,
         const FVector& AxisB,
-        float Radius,
-        const FVector4& Color
-    )
+        float Radius)
     {
         FVector Prev = Center + AxisA * Radius;
+        const FVector4 Color(255.0f, 255.0f, 255.0f, 255.0f);
+
         for (int32 i = 1; i <= SPHERE_SEGMENT_COUNT; ++i)
         {
             const float Angle = 2 * PI * i / SPHERE_SEGMENT_COUNT;
@@ -45,7 +45,7 @@ void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     const FVector Center = GetWorldLocation();
     float Radius = (GetAttenuationRadius() > 0.0f)? GetAttenuationRadius() : 0.0f;
 
-    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,0,1), Radius, GetLightColor().ToVector4());
-    AddWireSphere(LineBatcher, Center, FVector(0,1,0), FVector(0,0,1), Radius, GetLightColor().ToVector4());
-    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,1,0), Radius, GetLightColor().ToVector4());
+    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,0,1), Radius);
+    AddWireSphere(LineBatcher, Center, FVector(0,1,0), FVector(0,0,1), Radius);
+    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,1,0), Radius);
 }
