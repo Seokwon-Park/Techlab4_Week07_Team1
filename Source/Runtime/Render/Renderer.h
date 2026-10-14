@@ -207,7 +207,9 @@ public:
 	// CameraWorldPos는 ViewProjection과 함께 b0에 올라가 Specular 계산(V 벡터)에 쓰인다.
 	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos);
 
-	void RenderDepth();
+	// Depth Prepass: 불투명만 PS 없이 그려 깊이 버퍼를 채운다. RenderQueueSorting 뒤, RenderOpaque 전에 부른다.
+	// 같은 VS·행렬이라 깊이가 비트 단위로 같으므로 본 패스는 LESS_EQUAL로 통과한다.
+	void RenderDepth(const FMatrix& ViewProjection);
 
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.
@@ -224,11 +226,13 @@ public:
 	void SetViewMode(EViewMode InViewMode);
 	EViewMode GetViewMode() const { return CurrentViewMode; }
 
-	void CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height);
+	// DepthTexture는 Tiled25D에서만 쓴다. 이때는 DSV에서 풀린 상태(RenderDepth 뒤 EndRenderPass)여야 한다.
+	void CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height, FTexture2D* DepthTexture = nullptr);
 
 	// public
 	void SetLightDebugMode(uint32 Mode);
 	void SetLightCullingMode(ELightCullingMode Mode) { LightCullingMode = Mode; }
+	ELightCullingMode GetLightCullingMode() const { return LightCullingMode; }
 private:
 	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
 	void DrawStaticGroups();
@@ -242,8 +246,12 @@ private:
 private:
 	// private
 	TUniquePtr<FConstantBuffer> GridLightingCB{};
+	// NumTilesX = 0인 b5. 2.5D 목록은 불투명 깊이 기준이라 반투명은 이것으로 전체 순회한다.
+	TUniquePtr<FConstantBuffer> GridLightingFallbackCB{};
 	uint32 LightDebugMode{};
 	ELightCullingMode LightCullingMode = ELightCullingMode::Clustered;
+	// RenderDepth 동안 true. BindMaterial이 PS를 끈다.
+	bool bDepthOnly = false;
 
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;

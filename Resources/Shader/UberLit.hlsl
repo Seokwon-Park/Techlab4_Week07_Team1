@@ -43,16 +43,6 @@ struct FPointLightInfo
     float3 Padding;
 };
 
-struct FRectLightInfo
-{
-    float3 Position;   float Radius;
-    float3 Color;      float Intensity;
-    float3 Direction;  float HalfWidth;
-    float3 Right;      float HalfHeight;
-    float BarnDoorCos; float BarnDoorSin;
-    float BarnDoorLength; float Padding;
-};
-
 struct FSpotLightInfo
 {
     float3 Position;
@@ -80,6 +70,10 @@ struct FLightRenderParameters
     float HalfWidth;
     float HalfHeight;
     uint Type;
+    float BarnDoorCos;     // Rect 전용
+    float BarnDoorSin;
+    float BarnDoorLength;
+    float Padding;
 };
 
 
@@ -237,18 +231,42 @@ FLightContribution CalcSpot(FLightRenderParameters S, float3 N, float3 V, float3
 
 FLightContribution CalcRect(FLightRenderParameters R, float3 N, float3 V, float3 WorldPos, float InShininess)
 {
-    const float3 D = WorldPos - R.Position;
-    if (dot(D, R.Direction) <= 0.0f)                    // 면광원 뒤쪽
-        return (FLightContribution) 0;
+    const float3 Up = cross(R.Direction, R.Right);  // Z축
+    const float3 D  = WorldPos - R.Position;
 
-    const float3 Up = cross(R.Direction, R.Right);
-    const float x = clamp(dot(D, R.Right), -R.HalfWidth, R.HalfWidth);
-    const float y = clamp(dot(D, Up), -R.HalfHeight, R.HalfHeight);
-    const float3 SamplePos = R.Position + R.Right * x + Up * y; // 사각형 위에서 가장 가까운 점
+    // 1) 가장 가까운 점 찾기
+    const float x = clamp(dot(D, R.Right), -R.HalfWidth,  R.HalfWidth);     // 사각형 가로 좌표
+    const float y = clamp(dot(D, Up),      -R.HalfHeight, R.HalfHeight);    // 사각형 세로 좌표
+    const float3 Closest = R.Position + R.Right * x + Up * y;
 
-    float3 L;
-    const float Atten = LocalLightAttenuation(SamplePos, R.Radius, R.FalloffExponent, WorldPos, L);
-    return ShadeLight(N, L, V, R.Color * R.Intensity * Atten, InShininess);
+    // 2) 가장 가까운 점을 점광원처럼 취급
+    float3 L;   // 표면 -> 빛
+    const float Atten = LocalLightAttenuation(Closest, R.Radius, R.FalloffExponent, WorldPos, L);
+
+    // 3) 면의 앞쪽만 비춘다 (뒤쪽이면 0)
+    const float FrontFace = saturate(dot(-L, R.Direction));
+
+    // 4) 문 안쪽(프러스텀)만 통과
+    float Mask = 1.0f;
+
+    // Door Length가 0이면 그냥 rect (전방향)
+    if (R.BarnDoorLength > 0.0f)
+    {
+        const float3 Out = WorldPos - Closest;                 // 발광면에서 표면으로
+        const float Dist = max(length(Out), 0.0001f);
+        const float Fwd  = dot(Out, R.Direction);
+        const float LatX = abs(dot(Out, R.Right));
+        const float LatY = abs(dot(Out, Up));
+        // 옆으로 벌어진 각도가 frustum 안인가?
+        const float SlackX = (Fwd * R.BarnDoorSin - LatX * R.BarnDoorCos) / Dist;
+        const float SlackY = (Fwd * R.BarnDoorSin - LatY * R.BarnDoorCos) / Dist;
+        // Slack이 −0.05보다 작으면 0
+        // x,y 모두 닿아야 빛이 닿으므로 곱으로 마스크 만들기
+        Mask = smoothstep(-0.05f, 0.0f, SlackX) * smoothstep(-0.05f, 0.0f, SlackY);
+    }
+
+    const float3 Radiance = R.Color * R.Intensity * Atten * FrontFace * Mask;
+    return ShadeLight(N, L, V, Radiance, InShininess);
 }
 
 FLightContribution CalcLocalLight(FLightRenderParameters Light, float3 N, float3 V, float3 WorldPos, float InShininess)
@@ -295,46 +313,6 @@ float3 HeatColor(uint Count)
 
     float t = Count / 32.0f;
     return saturate(float3(t * 2 - 0.5, 1 - abs(t * 2 - 1), 1.5 - t * 2));
-}
-
-FLightContribution CalcRect(FRectLightInfo R, float3 N, float3 V, float3 WorldPos, float InShininess)
-{
-    const float3 Up = cross(R.Direction, R.Right);  // Z축
-    const float3 D  = WorldPos - R.Position;
-
-    // 1) 가장 가까운 점 찾기
-    const float x = clamp(dot(D, R.Right), -R.HalfWidth,  R.HalfWidth);     // 사각형 가로 좌표
-    const float y = clamp(dot(D, Up),      -R.HalfHeight, R.HalfHeight);    // 사각형 세로 좌표
-    const float3 Closest = R.Position + R.Right * x + Up * y;
-
-    // 2) 가장 가까운 점을 점광원처럼 취급
-    float3 L;   // 표면 -> 빛
-    const float Atten = LocalLightAttenuation(Closest, R.Radius, 1.0f, WorldPos, L);
-
-    // 3) 면의 앞쪽만 비춘다 (뒤쪽이면 0)
-    const float FrontFace = saturate(dot(-L, R.Direction));
-
-    // 4) 문 안쪽(프러스텀)만 통과
-    float Mask = 1.0f;
-
-    // Door Length가 0이면 그냥 rect (전방향)
-    if (R.BarnDoorLength > 0.0f)
-    {
-        const float3 Out = WorldPos - Closest;                 // 발광면에서 표면으로
-        const float Dist = max(length(Out), 0.0001f);
-        const float Fwd  = dot(Out, R.Direction);
-        const float LatX = abs(dot(Out, R.Right));
-        const float LatY = abs(dot(Out, Up));
-        // 옆으로 벌어진 각도가 frustum 안인가?
-        const float SlackX = (Fwd * R.BarnDoorSin - LatX * R.BarnDoorCos) / Dist;
-        const float SlackY = (Fwd * R.BarnDoorSin - LatY * R.BarnDoorCos) / Dist;
-        // Slack이 −0.05보다 작으면 0
-        // x,y 모두 닿아야 빛이 닿으므로 곱으로 마스크 만들기
-        Mask = smoothstep(-0.05f, 0.0f, SlackX) * smoothstep(-0.05f, 0.0f, SlackY);
-    }
-
-    const float3 Radiance = R.Color * R.Intensity * Atten * FrontFace * Mask;
-    return ShadeLight(N, L, V, Radiance, InShininess);
 }
 
 // bTiled = true면 SVPosition이 속한 타일의 PointLight만, false면 전체 PointLight를 순회한다.

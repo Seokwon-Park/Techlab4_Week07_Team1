@@ -64,7 +64,6 @@ void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     LineBatcher->AddLine(C1, A1, DoorColor);
     LineBatcher->AddLine(C2, A2, DoorColor);
     LineBatcher->AddLine(C3, A3, DoorColor);
-
 }
 
 FLightSceneProxy* URectLightComponent::CreateSceneProxy() const

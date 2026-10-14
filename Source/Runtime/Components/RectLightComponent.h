@@ -22,15 +22,16 @@ public:
 	// Getter
 	float GetWidth() const { return HalfWidth * 2.0f; }
 	float GetHeight() const { return HalfHeight * 2.0f; }
+
+	void SetBarnDoorAngle(float InAngle) { BarnDoorAngle = std::max(0.0f, InAngle); }
 	float GetBarnDoorAngle() const { return BarnDoorAngle; }
+
+	void SetBarnDoorLength(float InLength) { BarnDoorLength = std::clamp(InLength, 0.0f, 90.0f); }
 	float GetBarnDoorLength() const { return BarnDoorLength; }
-	float SetBarnDoorAngle(float InAngle) { BarnDoorAngle = std::max(0.0f, InAngle); }
-	float SetBarnDoorLength(float InLength) { BarnDoorLength = std::clamp(InLength, 0.0f, 90.0f); }
 
 private:
 	float HalfWidth = 3.0f;
 	float HalfHeight = 3.0f;
 	float BarnDoorAngle = 88.0f;	// 도 단위
 	float BarnDoorLength = 2.0f;	
-
 };
