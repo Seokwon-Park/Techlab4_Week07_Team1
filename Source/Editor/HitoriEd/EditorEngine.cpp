@@ -225,7 +225,7 @@ bool UEditorEngine::Init()
 	ViewportsPanel->SetViewportAdapter(&MultipleViewportsAdapter);
 
 	SkyboxRenderer = MakeUnique<FSkyboxRenderer>();
-	SkyboxRenderer->Init("Assets/SkySphere/Sky.dds");
+	SkyboxRenderer->Init("Assets/SkySphere/Sky.hdr");
 
 	const ImVec4 White = { 1, 1, 1, 1 };
 	const ImVec4 Green = { 0.40f, 0.80f, 0.30f, 1.0f };
