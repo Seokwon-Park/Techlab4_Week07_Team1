@@ -1,5 +1,7 @@
 #pragma pack_matrix(row_major)
 
+#include "ColorSpace.hlsli"
+
 #define TILE_SIZE 16
 #define MAX_LIGHTS_PER_TILE 255
 #define TILE_STRIDE (MAX_LIGHTS_PER_TILE + 1)
@@ -350,8 +352,12 @@ PS_INPUT mainVS(VS_INPUT Input)
 
 float4 mainPS(PS_INPUT Input) : SV_TARGET {
     const float2 UV = { Input.uv + UVOffset };
-    const float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
+    float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
 #if !defined(EDITOR_ARROW_SHADER)
+    // 씬은 HDR 타깃에 선형으로 쌓이므로 sRGB로 인코딩된 디퓨즈 텍스처와 BaseColor를 각각 선형으로 바꾼다.
+    // 에디터 화살표는 톤 매핑 이후 LDR 타깃에 그려지므로 sRGB 그대로 둔다.
+    Albedo.rgb = SRGBToLinear(g_txColor.Sample(g_Sample, UV).rgb) * SRGBToLinear(BaseColor.rgb);
+
     if (LightDebugMode == 1 && NumTilesX > 0) {
         const uint Count = { TileLightIndices[GetTileBase(Input.position)] };
         return float4(lerp(Albedo.rgb * 0.2f, HeatColor(Count), 0.7f), 1.0f);

@@ -12,7 +12,12 @@ struct FSubUVConstants
 	//float Padding = 0.0f;
 	float Alpha;
 	FVector4 Tint = FVector4(1, 1, 1, 1);	// default 흰색
+	// 1이면 텍스처·Tint를 sRGB -> 선형으로 바꾼다 (HDR 씬에 그리는 파티클·빌보드).
+	// 에디터 아이콘은 톤 매핑 이후 LDR 타깃에 그리므로 0 (sRGB 값 그대로).
+	float DecodeSRGB = 1.0f;
+	float Padding[3]{};
 };
+static_assert(sizeof(FSubUVConstants) == 48, "ParticleSubUVShader.hlsl cbuffer subuv와 크기가 같아야 한다");
 
 class UBillboardComponent : public UPrimitiveComponent
 {
