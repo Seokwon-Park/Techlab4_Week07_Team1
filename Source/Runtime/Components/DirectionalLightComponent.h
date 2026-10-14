@@ -11,6 +11,8 @@ public:
 	UDirectionalLightComponent();
 	virtual ~UDirectionalLightComponent() override;
 
+	virtual class FLightSceneProxy* CreateSceneProxy() const override;
+
 	ELightType GetLightType() const override { return ELightType::Directional; }
 
 

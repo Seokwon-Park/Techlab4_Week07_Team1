@@ -46,7 +46,8 @@ void FSettingsPanel::OnRender()
 	ImGui::SliderFloat("Exposure", &Settings.Exposure, 0.1f, 5.0f, "%.2f");
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
 	ImGui::Checkbox("Exponential Height Fog", &Settings.bExponentialHeightFog);
-	ImGui::Combo("Light Debug", &Settings.LightDebugMode, "Off\0Tile Heatmap\0Brute Force\0");
+	ImGui::Combo("Light Debug", &Settings.LightDebugMode, "Off\0Cell Heatmap\0Brute Force\0Slices\0");
+	ImGui::Combo("Light Culling", &Settings.LightCullingMode, "Tiled\0Clustered\0");
 	const char* Models[] = { "Gouraud", "Lambert", "Blinn-Phong" };
 	ImGui::Combo("Lighting Model", &Settings.LightingModel, Models, IM_ARRAYSIZE(Models));
 	//////////////////////////////////////////////////////////

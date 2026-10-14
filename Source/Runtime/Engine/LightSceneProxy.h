@@ -18,13 +18,17 @@ public:
 class FLightSceneProxy : public FLightSceneProxyFixLayout
 {
 public:
-	FLightSceneProxy(const ULightComponent* InLightComponent);
+	FLightSceneProxy(const ULightComponent* InLightComponent)
+		:LightComponent(InLightComponent) {};
 	virtual ~FLightSceneProxy() = default;
     
-    virtual void GetLightShaderParameters() const = 0;
+	virtual void GetLightShaderParameters(FLightRenderParameters& OutParameters) const = 0;
+
+	const ULightComponent* GetLightComponent() const { return LightComponent; }
+	bool IsVisible() const { return LightComponent->IsVisible(); }
 
 protected:
-	ULightComponent* LightComponent = nullptr;
+	const ULightComponent* LightComponent = nullptr;
 
 private:
 	friend class FScene;

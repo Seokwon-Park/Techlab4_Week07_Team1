@@ -47,6 +47,7 @@ struct FEditorSettings
 	int32 LightingModel = 1;	// 0 Gouraud 1 Lambert 2 Blinn-Phong
 
 	int32 LightDebugMode = 0;
+	int32 LightCullingMode = 1;	// ELightCullingMode: 0 Tiled 1 Clustered
 };
 
 

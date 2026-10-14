@@ -2,9 +2,12 @@
 
 #include "PrimitiveSceneProxy.h"
 #include "LightSceneProxy.h"
+#include "LocalLightSceneProxy.h"
+#include "DirectionalLightSceneProxy.h"
 #include "Components/BillboardComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
@@ -64,12 +67,9 @@ public:
 		}
 	};
 	bool bElementListChanged = false;
-	
-	// TArray<UFireBallComponent*> FireBallComponents;
 
-	TArray<FLightSceneProxy*> LightSceneProxies;
-
-	TArray<ULightComponent*> LightComponents;
-	TArray<FPointLightInfo> PointLights;
-	TArray<FSpotLightInfo> SpotLights;
+	TArray<FLocalLightSceneProxy*>        LocalLightProxies;      // ↔ PackedIndex ↔
+	TArray<FLightRenderParameters>        LocalLightParameters;   // GPU 업로드용, 같은 순서
+	TArray<FDirectionalLightSceneProxy*>  DirectionalLightProxies;
+	TArray<USkyLightComponent*>           SkyLights;               // 프록시 없음
 };
