@@ -23,6 +23,8 @@ public:
 	const FRenderingInfo& GetRenderingInfo(int32 ViewIndex) const;
 	// FXAA 결과를 임시로 받는 View별 텍스처. ColorTarget과 크기·포맷이 같다.
 	FTexture2D* GetFxaaTarget(int32 ViewIndex) const;
+	// HDR 결과를 임시로 받는 View별 텍스처. ColorTarget과 크기는 같고 포맷은 float.
+	FTexture2D* GetHDRTarget(int32 ViewIndex) const;
 
 	FVector2 GetContentSize() const { return {ContentSize.x, ContentSize.y}; }
 	FVector2 GetLocalMousePosition() const;
@@ -49,6 +51,7 @@ private:
 		TUniquePtr<FTexture2D> ColorTarget;
 		TUniquePtr<FTexture2D> DepthTarget;
 		TUniquePtr<FTexture2D> FxaaTarget;
+		TUniquePtr<FTexture2D> HDRTarget;
 		FRenderingInfo RenderingInfo{};
 	};
 

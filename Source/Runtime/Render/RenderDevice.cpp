@@ -181,27 +181,44 @@ TUniquePtr<FTexture2D> FRenderDevice::LoadDDSTexture(const FString& Path) {
 	const std::u8string UTF8Path{ Path.begin(), Path.end() };
 	const std::wstring FilePath{ std::filesystem::path{ UTF8Path }.wstring() };
 	ComPtr<ID3D11Resource> Resource{};
-	const HRESULT LoadResult{ DirectX::CreateDDSTextureFromFile(Device.Get(), FilePath.c_str(), Resource.GetAddressOf(), nullptr) };
+	// 메시·아이콘 텍스처는 모두 sRGB 인코딩 값 그대로(_UNORM) 올린다.
+	// 색으로 쓰는 곳(UberLit 디퓨즈, 파티클)이 셰이더에서 직접 선형으로 바꾸고,
+	// 노멀맵·톤 매핑 이후 오버레이(아이콘 등)는 인코딩 값 그대로 써야 하기 때문이다.
+	// _SRGB DDS를 그대로 올리면 하드웨어 디코딩 + 셰이더 디코딩이 겹쳐 두 번 어두워진다.
+	const HRESULT LoadResult{ DirectX::CreateDDSTextureFromFileEx(
+		Device.Get(),
+		FilePath.c_str(),
+		0,                              // maxsize: 제한 없음
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_SHADER_RESOURCE,
+		0,                              // CPU 접근 없음
+		0,
+		DirectX::DDS_LOADER_IGNORE_SRGB,
+		Resource.GetAddressOf(),
+		nullptr) };
 	if (FAILED(LoadResult)) {
 		HTR_LOG(Error, "[Texture] DDS load failed: {} (hr=0x{:08X})", Path, static_cast<uint32>(LoadResult));
 		return nullptr;
 	}
 
 	ComPtr<ID3D11Texture2D> Texture{};
-	if (FAILED(Resource.As(&Texture))) {
+	if (FAILED(Resource.As(&Texture))) 
+	{
 		HTR_LOG(Error, "[Texture] DDS is not a 2D texture: {}", Path);
 		return nullptr;
 	}
 
 	D3D11_TEXTURE2D_DESC Desc{};
 	Texture->GetDesc(&Desc);
-	if (Desc.ArraySize != 1 || (Desc.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0) {
+	if (Desc.ArraySize != 1 || (Desc.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0) 
+	{
 		HTR_LOG(Error, "[Texture] DDS arrays and cubemaps are not supported by UTexture2D: {}", Path);
 		return nullptr;
 	}
 
 	TUniquePtr<FTexture2D> LoadedTexture{ MakeUnique<FTexture2D>(Device.Get(), std::move(Resource), Desc) };
-	if (!LoadedTexture->GetSRV()) {
+	if (!LoadedTexture->GetSRV()) 
+	{
 		return nullptr;
 	}
 	return LoadedTexture;

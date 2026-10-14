@@ -24,7 +24,7 @@ private:
 class UTexture2D : public URenderAsset
 {
 	DECLARE_CLASS(UTexture2D, URenderAsset)
-
+	
 	friend class UAssetManager;
 public:
 	UTexture2D();

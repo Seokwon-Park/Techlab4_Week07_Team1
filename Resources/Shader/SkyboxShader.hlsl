@@ -2,11 +2,15 @@
 // 등장방형(equirectangular) 파노라마를 배경으로 그린다.
 // 정점 버퍼 없이 화면을 덮는 삼각형 하나를 SV_VertexID로 만든다.
 
+#include "ColorSpace.hlsli"
+
 cbuffer SkyboxConstants : register(b0)
 {
     matrix InverseViewProjection;
     float3 CameraPosition;
-    float  Padding;
+    // 1이면 셰이더에서 sRGB -> 선형 변환. (8bit/BC UNORM 텍스처)
+    // _SRGB 포맷은 하드웨어가 샘플링할 때 이미 디코딩하고, float(.hdr) 포맷은 원래 선형이라 0이다.
+    float  DecodeSRGB;
 };
 
 Texture2D    PanoramaTexture : register(t0);
@@ -54,5 +58,10 @@ float4 mainPS(PSInput Input) : SV_TARGET
     // Sample이 아니라 SampleLevel.
     // atan2가 -PI/+PI 경계에서 U를 1.0 -> 0.0으로 점프시키는데,
     // Sample은 그 UV 미분을 보고 최하위 밉을 골라 세로로 흐릿한 줄을 만든다.
-    return PanoramaTexture.SampleLevel(LinearSampler, PanoUV, 0);
+    float4 Color = PanoramaTexture.SampleLevel(LinearSampler, PanoUV, 0);
+    if (DecodeSRGB > 0.5f)
+    {
+        Color.rgb = SRGBToLinear(Color.rgb);
+    }
+    return float4(Color.rgb, 1.0f);
 }

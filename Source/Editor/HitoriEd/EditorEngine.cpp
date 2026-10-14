@@ -112,6 +112,9 @@ bool UEditorEngine::Init()
 	DepthViewRenderer = MakeUnique<FDepthViewRenderer>();
 	DepthViewRenderer->Init();
 
+	ToneMapRenderer = MakeUnique<FToneMapRenderer>();
+	ToneMapRenderer->Init();
+
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
@@ -222,7 +225,7 @@ bool UEditorEngine::Init()
 	ViewportsPanel->SetViewportAdapter(&MultipleViewportsAdapter);
 
 	SkyboxRenderer = MakeUnique<FSkyboxRenderer>();
-	SkyboxRenderer->Init("Assets/SkySphere/Sky.jpg");
+	SkyboxRenderer->Init("Assets/SkySphere/Sky.hdr");
 
 	const ImVec4 White = { 1, 1, 1, 1 };
 	const ImVec4 Green = { 0.40f, 0.80f, 0.30f, 1.0f };
@@ -552,7 +555,9 @@ FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
-	RenderCommand::BeginRenderPass(ViewRenderingInfo);
+	FRenderingInfo HDRInfo = ViewRenderingInfo;
+	HDRInfo.ColorRenderTargets[0].Texture = GetHDRTargetForView(ViewIndex);
+	RenderCommand::BeginRenderPass(HDRInfo);
 
 	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
@@ -618,18 +623,19 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 
 
 
-	RenderCommand::EndRenderPass(ViewRenderingInfo);
+	RenderCommand::EndRenderPass(HDRInfo);
 }
 
 void UEditorEngine::RenderFogPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation, const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
 {
-
+	FRenderingInfo HDRInfo = ViewRenderingInfo;
+	HDRInfo.ColorRenderTargets[0].Texture = GetHDRTargetForView(ViewIndex);
 	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = ViewWorld.GetScene().FogInfos;
 
 	if (SceneFogInfos.Num() == 0)
 		return;
 
-	FRenderingInfo PassInfo = ViewRenderingInfo;
+	FRenderingInfo PassInfo = HDRInfo;
 
 	//Load는 기존 내용을 그대로 두고 그 위에 그림을 그린다는뜻
 	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
@@ -638,7 +644,7 @@ void UEditorEngine::RenderFogPass(const int32 ViewIndex, UWorld& ViewWorld, cons
 	PassInfo.DepthStencil.Texture = nullptr;
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
+	FogRenderer->OnRender(HDRInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
 
 	//Fog는 여러개있더라도 1개의 Fog만 인식해서 그리도록 해야한다.
 
@@ -836,6 +842,44 @@ void UEditorEngine::RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& 
 	RenderCommand::CopyTexture(SceneColor, FxaaTarget);
 }
 
+void UEditorEngine::RenderToneMapPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo)
+{
+	FTexture2D* LDRColor = ViewRenderingInfo.ColorRenderTargets[0].Texture;
+	FTexture2D* HDRColor = GetHDRTargetForView(ViewIndex);   // 뷰별 임시 텍스처
+	if (!LDRColor || !HDRColor)
+		return;
+
+	// 출력은 임시 텍스처, 깊이 없음, 어차피 전부 덮어쓰니 Clear 불필요
+	FRenderingInfo PassInfo;
+	PassInfo.ViewportSetting = ViewRenderingInfo.ViewportSetting;
+
+	FRenderingDesc ColorDesc{};
+	ColorDesc.Texture = LDRColor;
+	ColorDesc.LoadOp = ERenderTargetLoadOp::DontCare;
+	PassInfo.ColorRenderTargets.Add(ColorDesc);
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	// 뷰모드에 따라 톤 매핑 방식을 고른다.
+	// - Lit: 노출 → ACES → sRGB 인코딩
+	// - Unlit: 텍스처 원본 색이 보이도록 sRGB 인코딩만
+	// - WorldNormal·Light Heatmap: 셰이더가 쓴 디버그 값을 그대로
+	EToneMapMode ToneMapMode = EToneMapMode::ACES;
+	const EViewMode ViewMode = MultipleViewportsAdapter.GetViewMode(ViewIndex);
+	if (ViewMode == EViewMode::WorldNormal || SettingsPanel->GetSettings().LightDebugMode == 1)
+		ToneMapMode = EToneMapMode::Passthrough;
+	else if (ViewMode == EViewMode::Unlit)
+		ToneMapMode = EToneMapMode::EncodeOnly;
+
+	//HDR 장면 텍스처를 읽어서 LDR 뷰 텍스처에 ToneMap 결과를 그린다
+	RenderCommand::BeginRenderPass(PassInfo);
+	ToneMapRenderer->SetExposure(SettingsPanel->GetSettings().Exposure);
+	ToneMapRenderer->OnRender(HDRColor, ToneMapMode);
+	RenderCommand::EndRenderPass(PassInfo);
+
+	// SceneColor가 SRV로 남아 있으면 Overlay 패스에서 RTV로 쓸 때 D3D가 강제로 해제하므로 먼저 비운다
+	RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
+}
+
 void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward)
 {
 	FRenderingInfo PassInfo = ViewRenderingInfo;
@@ -897,7 +941,6 @@ void UEditorEngine::UpdateGizmoAndPicking()
 		MultipleViewportsAdapter.PickActiveView(LocalMousePosition, *ViewWorld);
 		MultipleViewportsAdapter.ApplyLastPickToOutliner(*OutlinerPanel);
 	}
-
 }
 
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
@@ -917,6 +960,9 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 		if (!MultipleViewportsAdapter.IsOrthographic(ViewIndex) && SettingsPanel->GetSettings().bExponentialHeightFog)
 			// 2. 안개 Pass
 			RenderFogPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+
+		// 3. ToneMap(HDR) Pass
+		RenderToneMapPass(ViewIndex, ViewRenderingInfo);
 
 		// 3. FXAA Pass
 		if (SettingsPanel->GetSettings().bEnableFXAA)
@@ -1065,6 +1111,7 @@ void UEditorEngine::DestroyPIEWindow()
 	PIEColorTarget.reset();
 	PIEDepthTarget.reset();
 	PIEFxaaTarget.reset();
+	PIEHDRTarget.reset();
 	PIETargetWidth = 0;
 	PIETargetHeight = 0;
 	bPIEWindowRendered = false;
@@ -1111,6 +1158,10 @@ bool UEditorEngine::UpdatePIEWindowTargets()
 		Desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 		PIEDepthTarget = RenderCommand::CreateTexture2D(Desc);
 
+		Desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		PIEHDRTarget = RenderCommand::CreateTexture2D(Desc);
+
 		PIERenderingInfo.ColorRenderTargets.Reset();
 		PIERenderingInfo.ViewportSetting.Width = Width;
 		PIERenderingInfo.ViewportSetting.Height = Height;
@@ -1150,6 +1201,13 @@ FTexture2D* UEditorEngine::GetFxaaTargetForView(const int32 ViewIndex) const
 	if (ViewIndex == FMultipleViewportsAdapter::ExternalViewIndex)
 		return PIEFxaaTarget.get();
 	return ViewportsPanel->GetFxaaTarget(ViewIndex);
+}
+
+FTexture2D* UEditorEngine::GetHDRTargetForView(const int32 ViewIndex) const
+{
+	if (ViewIndex == FMultipleViewportsAdapter::ExternalViewIndex)
+		return PIEHDRTarget.get();
+	return ViewportsPanel->GetHDRTarget(ViewIndex);
 }
 
 

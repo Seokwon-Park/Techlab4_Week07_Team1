@@ -43,6 +43,7 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("Draw Bounding Box", &Settings.bDrawBoundingBox);
 	ImGui::Checkbox("Show Object UUID", &Settings.bShowUUID);
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
+	ImGui::SliderFloat("Exposure", &Settings.Exposure, 0.1f, 5.0f, "%.2f");
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
 	ImGui::Checkbox("Exponential Height Fog", &Settings.bExponentialHeightFog);
 	ImGui::Combo("Light Debug", &Settings.LightDebugMode, "Off\0Cell Heatmap\0Brute Force\0Slices\0");

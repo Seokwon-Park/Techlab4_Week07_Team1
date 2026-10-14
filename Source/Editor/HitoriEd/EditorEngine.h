@@ -13,6 +13,7 @@
 #include "Render/LineBatcher.h"
 #include "Render/FogRenderer.h"
 #include "Render/FXAARenderer.h"
+#include "Render/ToneMapRenderer.h"
 #include "Render/DepthViewRenderer.h"
 
 
@@ -98,6 +99,8 @@ private:
 	bool IsPIEInWindow() const { return PIEWindow != nullptr; }
 	// View별 FXAA 임시 텍스처. 외부 View는 PIE 창 타깃을 쓴다.
 	FTexture2D* GetFxaaTargetForView(int32 ViewIndex) const;
+	// View별 HDR 임시 텍스처. 외부 View는 PIE 창 타깃을 쓴다.
+	FTexture2D* GetHDRTargetForView(int32 ViewIndex) const;
 	// 화면 합성과 View 설정 보관으로 프레임을 마무리한다.
 	void EndFrame();
 
@@ -113,6 +116,8 @@ private:
 	void RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
 	//Normal Pass
 	void RenderNormalPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
+	//ToneMap Pass
+	void RenderToneMapPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo);
 
 	//Icon Pass
 	void RenderIconPass(int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderIconQueue, FRenderQueue& ArrowQueue);
@@ -143,6 +148,7 @@ private:
 	TUniquePtr<FOutlineRenderer> OutlineRenderer;
 	TUniquePtr<FSkyboxRenderer> SkyboxRenderer;
 	TUniquePtr<FFXAARenderer> FXAARenderer;
+	TUniquePtr<FToneMapRenderer> ToneMapRenderer;
 	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
 
 	UFont* SystemFont;
@@ -174,6 +180,7 @@ private:
 	TUniquePtr<FTexture2D> PIEColorTarget;
 	TUniquePtr<FTexture2D> PIEDepthTarget;
 	TUniquePtr<FTexture2D> PIEFxaaTarget;
+	TUniquePtr<FTexture2D> PIEHDRTarget;
 	FRenderingInfo PIERenderingInfo{};
 	uint32 PIETargetWidth = 0;
 	uint32 PIETargetHeight = 0;

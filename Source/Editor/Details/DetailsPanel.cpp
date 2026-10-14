@@ -565,8 +565,21 @@ namespace
 		void* ValuePtr = reinterpret_cast<char*>(Object) + Property.Offset;
 		const FString Label = "##" + Property.Name;
 
-		ImGui::Text(Property.Name.c_str());
-		ImGui::SameLine(120.0f);
+		const char* DisplayName = Property.Name.c_str();
+
+		// 패널이 넓으면 라벨 | 값을 한 줄에, 좁거나 라벨이 길면 라벨 아래 줄에 값을 놓는다.
+		const float StartX = ImGui::GetCursorPosX();
+		const float AvailableWidth = ImGui::GetContentRegionAvail().x;
+		const float LabelWidth = AvailableWidth * 0.45f;
+
+		const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && ImGui::CalcTextSize(DisplayName).x < LabelWidth;
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextWrapped("%s", DisplayName);
+
+		if (bInline)
+			ImGui::SameLine(StartX + LabelWidth);
+
 		ImGui::SetNextItemWidth(-1.0f);
 
 		bool bChanged = false;

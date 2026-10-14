@@ -5,12 +5,12 @@
 #include "Texture2D.h"
 
 // HLSL의 cbuffer SkyboxConstants와 레이아웃이 일치해야 한다.
-// float3 뒤의 Padding은 16바이트 정렬 때문에 필요하다.
+// float3 뒤의 한 칸은 16바이트 정렬용 자리를 sRGB 디코딩 플래그로 쓴다.
 struct FSkyboxConstants
 {
 	FMatrix InverseViewProjection;
 	FVector CameraPosition;
-	float   Padding = 0.0f;
+	float   DecodeSRGB = 0.0f;	// 1이면 셰이더에서 sRGB -> 선형 변환
 };
 
 // 등장방형 파노라마 한 장을 배경으로 그린다.
@@ -33,4 +33,6 @@ private:
 	TUniquePtr<FConstantBuffer> ConstantBuffer;
 	TUniquePtr<FTexture2D> PanoramaTexture;
 	FPipelineState PipelineState;
+	// 텍스처가 sRGB 인코딩 값을 그대로 돌려주는 포맷이라 셰이더에서 디코딩해야 하는지
+	bool bDecodeSRGBInShader = false;
 };

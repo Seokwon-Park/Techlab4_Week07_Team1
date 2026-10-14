@@ -1,9 +1,12 @@
 #pragma pack_matrix(row_major)
 
+#include "ColorSpace.hlsli"
+
 #define LIGHT_TYPE_POINT 1   // C++ ELightType과 같아야 함
 #define LIGHT_TYPE_SPOT  2
 #define LIGHT_TYPE_RECT  3
 
+// TileBasedLightCulling.hlsl의 MAX_LIGHTS_PER_TILE / TILE_STRIDE와 같아야 한다.
 #define MAX_LIGHTS_PER_CELL 32
 #define CELL_STRIDE (MAX_LIGHTS_PER_CELL + 1)
 
@@ -370,8 +373,13 @@ PS_INPUT mainVS(VS_INPUT Input)
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
     const float2 UV = Input.uv + UVOffset;
-    const float4 Albedo = g_txColor.Sample(g_Sample, UV) * BaseColor;
+    const float4 TexColor = g_txColor.Sample(g_Sample, UV);
+    float4 Albedo = TexColor * BaseColor;
 #if !defined(EDITOR_ARROW_SHADER)
+    // 씬은 HDR 타깃에 선형으로 쌓이므로 sRGB로 인코딩된 디퓨즈 텍스처와 BaseColor를 각각 선형으로 바꾼다.
+    // 에디터 화살표는 톤 매핑 이후 LDR 타깃에 그려지므로 sRGB 그대로 둔다.
+    Albedo.rgb = SRGBToLinear(TexColor.rgb) * SRGBToLinear(BaseColor.rgb);
+
     if (LightDebugMode == 1 && NumTilesX > 0)
     {
         const uint Count = TileLightIndices[GetTileBase(Input.position)];
