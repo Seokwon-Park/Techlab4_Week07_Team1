@@ -3,6 +3,7 @@
 #include "Collision/Ray.h"
 #include "Math/Transform.h"
 #include "Components/SceneComponent.h"
+#include "Components/LocalLightComponent.h"
 
 class UCameraComponent;
 
@@ -92,4 +93,9 @@ private:
 
 	float DragStartAngle;
 	float RingRadius = 1.0f;
+
+	// Light Component인 경우 Radius를 증감하기 위한 멤버변수와 함수
+	float DragStartRadius = 0.0f;
+	bool ApplyScaleToLight(float Factor);
+	ULocalLightComponent* GetTargetLight() const;
 };

@@ -124,31 +124,32 @@ void UBillboardComponent::GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) con
 	}
 
 	const FVector WorldPos = GetWorldLocation();
-	// const FVector WorldScale = GetWorldScale3D();
-	const float S = IconSize;
 
-	// Y -> Billboard Right
-	OutWorldMatrix->M[0][0] = BbFwd.X;
-	OutWorldMatrix->M[0][1] = BbFwd.Y;
-	OutWorldMatrix->M[0][2] = BbFwd.Z;
+	// Icon 일 때만 IconSize 넘기기
+	const FVector Scale = IsEditorIcon() ? FVector(IconSize, IconSize, IconSize) : GetWorldScale3D();
+	
+	// X -> Billboard Forward
+	OutWorldMatrix->M[0][0] = BbFwd.X * Scale.X;
+	OutWorldMatrix->M[0][1] = BbFwd.Y * Scale.X;
+	OutWorldMatrix->M[0][2] = BbFwd.Z * Scale.X;
 	OutWorldMatrix->M[0][3] = 0.0f;
 
-	// Z -> Billboard Up
-	OutWorldMatrix->M[1][0] = BbRight.X;
-	OutWorldMatrix->M[1][1] = BbRight.Y;
-	OutWorldMatrix->M[1][2] = BbRight.Z;
+	// Y -> Billboard Right
+	OutWorldMatrix->M[1][0] = BbRight.X * Scale.Y;
+	OutWorldMatrix->M[1][1] = BbRight.Y * Scale.Y;
+	OutWorldMatrix->M[1][2] = BbRight.Z * Scale.Y;
 	OutWorldMatrix->M[1][3] = 0.0f;
 
-	// X -> Billboard Forward
-	OutWorldMatrix->M[2][0] = BbUp.X;
-	OutWorldMatrix->M[2][1] = BbUp.Y;
-	OutWorldMatrix->M[2][2] = BbUp.Z;
+	// Z -> Billboard Up
+	OutWorldMatrix->M[2][0] = BbUp.X * Scale.Z;
+	OutWorldMatrix->M[2][1] = BbUp.Y * Scale.Z;
+	OutWorldMatrix->M[2][2] = BbUp.Z * Scale.Z;
 	OutWorldMatrix->M[2][3] = 0.0f;
 
 	// Position
-	OutWorldMatrix->M[3][0] = S;
-	OutWorldMatrix->M[3][1] = S;
-	OutWorldMatrix->M[3][2] = S;
+	OutWorldMatrix->M[3][0] = WorldPos.X;
+	OutWorldMatrix->M[3][1] = WorldPos.Y;
+	OutWorldMatrix->M[3][2] = WorldPos.Z;
 	OutWorldMatrix->M[3][3] = 1.0f;
 }
 

@@ -2,6 +2,7 @@
 #include "Editor/Gizmo/Gizmo.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Actor/LightActorBase.h"
 
 static const FVector AxisDirs[3] = {
 	FVector(1, 0, 0),
@@ -161,6 +162,23 @@ int FGizmo::PickRotationAxis(const FVector2& MousePos, const FMatrix& ViewProj, 
 	return Best;
 }
 
+// LocalLightComponet 가져오기 (Rect, Point, Spot 등 Radius를 파라미터로 것들)
+ULocalLightComponent* FGizmo::GetTargetLight() const
+{
+    if (!Target) return nullptr;
+    ALightActorBase* Actor = Cast<ALightActorBase>(Target->GetOwner());
+    return Actor ? Cast<ULocalLightComponent>(Actor->GetLightComponent()) : nullptr;
+}
+
+// 조명이면 radius만 바꾸고 true를 반환
+bool FGizmo::ApplyScaleToLight(float Factor)
+{
+    ULocalLightComponent* Light = GetTargetLight();
+    if (!Light) return false;
+    Light->SetAttenuationRadius(DragStartRadius * Factor);
+    return true;
+}
+
 // 시작 Transform·교차점을 저장하고 조작 축의 드래그 평면을 정한다.
 void FGizmo::BeginDrag(int Axis, const FRay& MouseRay, const FVector2& MousePos)
 {
@@ -170,6 +188,10 @@ void FGizmo::BeginDrag(int Axis, const FRay& MouseRay, const FVector2& MousePos)
 	DragStartRenderLocation = GetRenderLocation();    
 	DragStartRotation = GetRotation();
 	DragStartScale = GetScale();
+
+	// Local LightComponent면 Radius 가져와서 저장해놓기
+	if (ULocalLightComponent* Light = GetTargetLight())
+    	DragStartRadius = Light->GetAttenuationRadius();
 
 	DragAxisDirection = GetAxisDirection(Axis);
 	FVector axis = DragAxisDirection;
@@ -233,7 +255,8 @@ void FGizmo::UpdateDrag(const FRay& MouseRay, const FVector2& MousePos)
 			float factor = 1.0f + scaleDelta;
 			if (factor < 0.01f) factor = 0.01f;
 
-			Target->SetRelativeScale3D(DragStartScale * factor);
+			if (!ApplyScaleToLight(factor)) 	// 조명이면 여기서 radius만 변경하고 return
+				Target->SetRelativeScale3D(DragStartScale * factor);
 		}
 		return;
 	}
@@ -261,6 +284,9 @@ void FGizmo::UpdateDrag(const FRay& MouseRay, const FVector2& MousePos)
 	{
 		float factor = 1.0f + amount;
 		if (factor < 0.01f) factor = 0.01f;
+
+		// 조명이면 여기서 radius만 반영하고 return
+		if (ApplyScaleToLight(factor)) return;
 
 		FVector NewScale = DragStartScale;
 		if (DraggingAxis == 0)      NewScale.X *= factor;

@@ -102,11 +102,11 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 
 	// 바깥 원뿔은 라이트 색 그대로, 안쪽은 구분되도록 흐리게
 
-	FColor OuterColor(255.0f, 255.0f, 255.0f, 255.0f);
+	FColor OuterColor(0.0f, 248.0f, 255.0f, 255.0f);
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeOuterAngle, SafeRadius, OuterColor);
 
-	FColor InnerColor(127.5f, 127.5f, 127.5f, 127.5f);
+	FColor InnerColor(0.0f, 112.0f, 255.0f, 255.0f );
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
 }

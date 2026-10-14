@@ -7,6 +7,30 @@
 URectLightComponent::URectLightComponent() {}
 URectLightComponent::~URectLightComponent() {}
 
+namespace
+{
+    constexpr int32 SPHERE_SEGMENT_COUNT = 32;
+
+    void AddWireSphere(
+        FLineBatcher* LineBatcher,
+        const FVector& Center,
+        const FVector& AxisA,
+        const FVector& AxisB,
+        float Radius)
+    {
+        FVector Prev = Center + AxisA * Radius;
+        const FVector4 Color(0.0f, 248.0f, 255.0f, 255.0f);
+
+        for (int32 i = 1; i <= SPHERE_SEGMENT_COUNT; ++i)
+        {
+            const float Angle = 2 * PI * i / SPHERE_SEGMENT_COUNT;
+            const FVector Point = Center + AxisA * (std::cosf(Angle)*Radius) + AxisB * (std::sinf(Angle)*Radius);
+            LineBatcher->AddLine(Prev, Point, Color);
+            Prev = Point;
+        }
+    }
+}
+
 void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 {
 	if (LineBatcher == nullptr) return;
@@ -31,11 +55,7 @@ void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     const FVector C2 = Center - Right * HW - Up * HH;
     const FVector C3 = Center + Right * HW - Up * HH;
 
-    const FVector4 Color = FColor(255.0f, 255.0f, 255.0f, 255.0f).ToVector4();
-
-    // Door은 흐리게
-	const FColor DoorFColor(127.5f, 127.5f, 127.5f, 127.5f);
-	const FVector4 DoorColor = DoorFColor.ToVector4();
+    const FVector4 Color = FColor(255.0f, 246.0f, 0.0f, 255.0f).ToVector4();
 
     // 개구부 사각형: 앞으로 F만큼 나가고, 사방으로 S만큼 벌어진다
     const float F = std::cosf(Angle) * Len;     // 앞으로 나간 양
@@ -54,16 +74,28 @@ void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     LineBatcher->AddLine(C3, C0, Color);
 
     // 개구부 사각형
-    LineBatcher->AddLine(A0, A1, DoorColor);
-    LineBatcher->AddLine(A1, A2, DoorColor);
-    LineBatcher->AddLine(A2, A3, DoorColor);
-    LineBatcher->AddLine(A3, A0, DoorColor);
+    LineBatcher->AddLine(A0, A1, Color);
+    LineBatcher->AddLine(A1, A2, Color);
+    LineBatcher->AddLine(A2, A3, Color);
+    LineBatcher->AddLine(A3, A0, Color);
 
     // 발광면 모서리와 개구부 모서리 연결
-    LineBatcher->AddLine(C0, A0, DoorColor);
-    LineBatcher->AddLine(C1, A1, DoorColor);
-    LineBatcher->AddLine(C2, A2, DoorColor);
-    LineBatcher->AddLine(C3, A3, DoorColor);
+    LineBatcher->AddLine(C0, A0, Color);
+    LineBatcher->AddLine(C1, A1, Color);
+    LineBatcher->AddLine(C2, A2, Color);
+    LineBatcher->AddLine(C3, A3, Color);
+    
+    // AttenuationRadius 반경의 원 3개(XY, XZ, YZ)
+    {
+    if (LineBatcher == nullptr) return;
+
+    const FVector Center = GetWorldLocation();
+    float Radius = (GetAttenuationRadius() > 0.0f)? GetAttenuationRadius() : 0.0f;
+
+    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,0,1), Radius);
+    AddWireSphere(LineBatcher, Center, FVector(0,1,0), FVector(0,0,1), Radius);
+    AddWireSphere(LineBatcher, Center, FVector(1,0,0), FVector(0,1,0), Radius);
+    }
 }
 
 FLightSceneProxy* URectLightComponent::CreateSceneProxy() const
