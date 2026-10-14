@@ -307,7 +307,8 @@ void FRenderDevice::CreateStates()
 		D3D11_DEPTH_STENCIL_DESC Desc = {};
 		Desc.DepthEnable = TRUE;
 		Desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-		Desc.DepthFunc = D3D11_COMPARISON_LESS;
+		// Depth Prepass가 쓴 깊이와 같은 값을 본 패스가 다시 그려도 통과하도록 LESS_EQUAL
+		Desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 		Desc.StencilEnable = FALSE;
 
 		Device->CreateDepthStencilState(&Desc, DepthStencilStates[(uint8)EDepthStencilState::Default].GetAddressOf());

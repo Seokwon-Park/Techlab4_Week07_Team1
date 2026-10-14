@@ -572,11 +572,34 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
 		Renderer->RenderQueueSorting(RenderQueue, ViewProjection, ViewCameraLocation);
+
+		// 2.5D는 타일의 실제 깊이가 필요하므로 불투명 깊이를 먼저 채운 뒤 컬링한다.
+		FTexture2D* DepthTexture = ViewRenderingInfo.DepthStencil.Texture;
+		const bool bDepthPrepass = Renderer->GetLightCullingMode() == ELightCullingMode::Tiled25D && DepthTexture;
+		if (bDepthPrepass)
+		{
+			Renderer->RenderDepth(ViewProjection);
+			// DSV로 묶인 텍스처는 SRV로 읽을 수 없으므로 렌더 타깃을 푼다
+			RenderCommand::EndRenderPass(ViewRenderingInfo);
+		}
+
 		Renderer->CullLights(
 			MultipleViewportsAdapter.GetEngineView(ViewIndex),
 			MultipleViewportsAdapter.GetEngineProjection(ViewIndex),
 			ViewRenderingInfo.ViewportSetting.Width,
-			ViewRenderingInfo.ViewportSetting.Height);
+			ViewRenderingInfo.ViewportSetting.Height,
+			bDepthPrepass ? DepthTexture : nullptr);
+
+		if (bDepthPrepass)
+		{
+			// 스카이박스와 Prepass 깊이를 지우지 않도록 Load로 다시 묶는다
+			FRenderingInfo ResumeInfo = ViewRenderingInfo;
+			for (FRenderingDesc& Color : ResumeInfo.ColorRenderTargets)
+				Color.LoadOp = ERenderTargetLoadOp::Load;
+			ResumeInfo.DepthStencil.LoadOp = ERenderTargetLoadOp::Load;
+			RenderCommand::BeginRenderPass(ResumeInfo);
+		}
+
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);

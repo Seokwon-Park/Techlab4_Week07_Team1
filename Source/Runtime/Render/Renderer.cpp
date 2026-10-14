@@ -79,10 +79,12 @@ bool FRenderer::Init()
 	LightingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightingConstants));
 	LightCullingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightCullingConstants));
 	GridLightingCB = RenderCommand::CreateConstantBuffer(sizeof(FLightGridConstants));
+	GridLightingFallbackCB = RenderCommand::CreateConstantBuffer(sizeof(FLightGridConstants));
 
 	LocalLightBuffer = RenderCommand::CreateDynamicStructuredBuffer(sizeof(FLightRenderParameters), MaxLocalLights);
 	const FLightGridConstants GridConstants{};
 	RenderCommand::UpdateBufferData(GridLightingCB.get(), &GridConstants, sizeof(FLightGridConstants));
+	RenderCommand::UpdateBufferData(GridLightingFallbackCB.get(), &GridConstants, sizeof(FLightGridConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -177,7 +179,9 @@ void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 	RenderCommand::BindConstantBuffer(4, LightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 	RenderCommand::BindShaderResource(10, LocalLightBuffer.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 	RenderCommand::BindShaderResource(12, TileIndexBuffer.get(), EShaderBindFlagBits::Pixel);
-	RenderCommand::BindConstantBuffer(5, GridLightingCB.get(), EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
+	// 2.5D 목록은 불투명 깊이 범위만 담으므로, 불투명보다 앞에 있는 반투명은 전체 순회로 그린다.
+	FConstantBuffer* GridCB = LightCullingMode == ELightCullingMode::Tiled25D ? GridLightingFallbackCB.get() : GridLightingCB.get();
+	RenderCommand::BindConstantBuffer(5, GridCB, EShaderBindFlagBits::Pixel | EShaderBindFlagBits::Vertex);
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -269,10 +273,17 @@ void FRenderer::RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewPro
 	bObjectConstantsPrepared = false;
 }
 
-void FRenderer::RenderDepth()
+void FRenderer::RenderDepth(const FMatrix& ViewProjection)
 {
+	// 불투명 두 경로(스태틱 묶음, 일반 패킷)를 PS 없이 그린다. 반투명은 깊이를 쓰지 않으므로 뺀다.
+	bDepthOnly = true;
 	DrawStaticGroups();
-	//DrawPackets(0, FirstTranslucentIndex, ViewProjection);
+	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
+	bDepthOnly = false;
+
+	// 본 패스가 머티리얼을 처음부터 다시 바인딩해 PS가 돌아오게 한다.
+	LastMesh = nullptr;
+	LastMaterial = nullptr;
 }
 
 // 정렬된 패킷 중 [Begin, End) 범위를 View 행렬과 Section 범위로 그린다.
@@ -501,6 +512,8 @@ void FRenderer::BindMaterial(UMaterial* Material) {
 	}
 
 	RenderCommand::BindShaderProgram(Program);
+	if (bDepthOnly)
+		RenderCommand::GetContext()->PSSetShader(nullptr, nullptr, 0);   // 깊이만 쓰므로 조명 PS를 돌리지 않는다
 	RenderCommand::SetBlendState(Material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool Translucent{ Material->BlendState != EBlendState::Opaque };
@@ -604,20 +617,25 @@ void FRenderer::SetLighting(FLightingConstants& LightingConstants, const TArray<
 	RenderCommand::UpdateBufferData(GridLightingCB.get(), &GridConstants, sizeof(FLightGridConstants));
 }
 
-void FRenderer::CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height)
+void FRenderer::CullLights(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height, FTexture2D* DepthTexture)
 {
+	// 반투명(2.5D)과 컬링 전 경로가 쓰는 전체 순회용 b5. 디버그 모드만 반영한다.
+	FLightGridConstants FallbackConstants{};
+	FallbackConstants.LightDebugMode = LightDebugMode;
+	RenderCommand::UpdateBufferData(GridLightingFallbackCB.get(), &FallbackConstants, sizeof(FLightGridConstants));
+
 	if (Width == 0 || Height == 0)
 	{
-		FLightGridConstants GridConstants{};
-		GridConstants.LightDebugMode = LightDebugMode;
-		RenderCommand::UpdateBufferData(GridLightingCB.get(), &GridConstants, sizeof(FLightGridConstants));
+		RenderCommand::UpdateBufferData(GridLightingCB.get(), &FallbackConstants, sizeof(FLightGridConstants));
 		return;
 	}
 
 	float NearZ, FarZ; bool bOrtho;
 	ExtractDepthRange(Projection, NearZ, FarZ, bOrtho);
 
-	// Tiled는 슬라이스 1개짜리 Clustered로 돌린다. 2.5D는 아직 없으므로 Tiled로 대신한다.
+	// Tiled는 슬라이스 1개짜리 Clustered로 돌린다. 2.5D는 같은 형식(슬라이스 1개)을 깊이 버퍼로 채우는 별도 CS다.
+	// 깊이 텍스처가 없으면 2.5D는 Tiled로 대신한다.
+	const bool b25D = LightCullingMode == ELightCullingMode::Tiled25D && DepthTexture && DepthTexture->GetSRV();
 	const bool bClustered = LightCullingMode == ELightCullingMode::Clustered;
 	const uint32 TileSize = bClustered ? ClusteredTileSize : TiledTileSize;
 	const uint32 NumSlices = bClustered ? ClusteredSlices : 1;
@@ -646,13 +664,28 @@ void FRenderer::CullLights(const FMatrix& View, const FMatrix& Projection, uint3
 	CB.FarZ = FarZ;
 	RenderCommand::UpdateBufferData(LightCullingCB.get(), &CB, sizeof(FLightCullingConstants));
 
-	RenderCommand::BindComputeShader(FRenderResourceManager::GetComputeShader("Resources/Shader/TileBasedLightCulling.hlsl"));
+	FComputeShader* CullingShader = FRenderResourceManager::GetComputeShader(b25D
+		? "Resources/Shader/TiledLightCulling25D.hlsl"
+		: "Resources/Shader/TileBasedLightCulling.hlsl");
+	if (!CullingShader)
+	{
+		// 셰이더 컴파일 실패 시 셀 버퍼를 쓰지 않고 전체 순회로 그린다.
+		RenderCommand::UpdateBufferData(GridLightingCB.get(), &FallbackConstants, sizeof(FLightGridConstants));
+		return;
+	}
+
+	RenderCommand::BindComputeShader(CullingShader);
 	RenderCommand::BindConstantBuffer(0, LightCullingCB.get(), EShaderBindFlagBits::Compute);
 	RenderCommand::BindShaderResource(10, LocalLightBuffer.get(), EShaderBindFlagBits::Compute);
+	if (b25D)
+		RenderCommand::BindShaderResource(11, DepthTexture, EShaderBindFlagBits::Compute);
 	RenderCommand::BindUnorderedAccess(0, TileIndexBuffer.get());
 	RenderCommand::Dispatch(NumTilesX, NumTilesY, NumSlices);
 	RenderCommand::UnbindUnorderedAccess(0);
 	RenderCommand::UnbindShaderResource(10, EShaderBindFlagBits::Compute);
+	// 깊이 텍스처는 곧 본 패스에서 DSV로 다시 묶이므로 SRV를 풀어 둔다.
+	if (b25D)
+		RenderCommand::UnbindShaderResource(11, EShaderBindFlagBits::Compute);
 
 	// 원근은 로그 분포라 PS가 Slice = log(z) * SliceScale + SliceBias로 바로 구하게 미리 계산한다.
 	FLightGridConstants GridCB{};
