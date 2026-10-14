@@ -25,7 +25,7 @@ namespace
         float Radius)
     {
         FVector Prev = Center + AxisA * Radius;
-        const FVector4 Color(255.0f, 255.0f, 255.0f, 255.0f);
+        const FVector4 Color(0.0f, 248.0f, 255.0f, 255.0f);
 
         for (int32 i = 1; i <= SPHERE_SEGMENT_COUNT; ++i)
         {
