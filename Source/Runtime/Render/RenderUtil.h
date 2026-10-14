@@ -4,6 +4,7 @@
 
 // "Lighting_model", "1"
 using FShaderDefines = std::vector<std::pair<FString, FString>>;
+
 struct FShaderByteCode
 {
 	ComPtr<ID3DBlob> Blob;
@@ -25,4 +26,4 @@ public:
 	static FString GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const D3D_SHADER_MACRO* Macro = nullptr);
 	static bool IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath);
 	static FShaderByteCode GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType, FString& OutCSOPath, const D3D_SHADER_MACRO* Macro = nullptr);
-};
+};

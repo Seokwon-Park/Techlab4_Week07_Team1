@@ -218,9 +218,13 @@ project "Shaders"
 	kind     "Utility"
 
 	files { "Resources/Shader/**.hlsl" }
+	files { "Resources/Shader/**.hlsli" }
 	vpaths { ["*"] = "Resources/Shader/**" }
 
 	filter "files:**.hlsl"
+		excludefrombuild "On"
+
+	filter "files:**.hlsli"
 		excludefrombuild "On"
 
 	filter {}

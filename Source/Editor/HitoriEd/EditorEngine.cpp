@@ -585,7 +585,7 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		{
 			Renderer->RenderDepth(ViewProjection);
 			// DSV로 묶인 텍스처는 SRV로 읽을 수 없으므로 렌더 타깃을 푼다
-			RenderCommand::EndRenderPass(ViewRenderingInfo);
+			RenderCommand::EndRenderPass(HDRInfo);
 		}
 
 		Renderer->CullLights(
@@ -598,7 +598,7 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		if (bDepthPrepass)
 		{
 			// 스카이박스와 Prepass 깊이를 지우지 않도록 Load로 다시 묶는다
-			FRenderingInfo ResumeInfo = ViewRenderingInfo;
+			FRenderingInfo ResumeInfo = HDRInfo;
 			for (FRenderingDesc& Color : ResumeInfo.ColorRenderTargets)
 				Color.LoadOp = ERenderTargetLoadOp::Load;
 			ResumeInfo.DepthStencil.LoadOp = ERenderTargetLoadOp::Load;

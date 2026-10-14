@@ -36,8 +36,11 @@ void mainCS(uint3 GroupID : SV_GroupID, uint3 DispatchID : SV_DispatchThreadID, 
 
     // 1) 자기 픽셀 깊이. 화면 밖과 아무것도 안 그려진 곳(깊이 1)은 제외
     const bool bInside = all(DispatchID.xy < (uint2) ViewportSize);
+    // viewport 안쪽이면 픽셀의 Depth 값을 가져온다.
     const float Depth = bInside ? DepthTexture.Load(int3(DispatchID.xy, 0)) : 1.0f;
+    // Depth가 1.0 미만이면 유효한 깊이
     const bool bValid = Depth < 1.0f;
+    // 
     const float Z = bValid ? ToViewDepth(Depth) : 0.0f;
 
     // 2) 타일 min/max
