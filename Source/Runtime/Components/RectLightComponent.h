@@ -12,6 +12,8 @@ class URectLightComponent :public ULocalLightComponent
 public:
 	URectLightComponent();
 	virtual ~URectLightComponent() override;
+	virtual FLightSceneProxy* CreateSceneProxy() const override;
+
 	ELightType GetLightType() const { return ELightType::Rect; }
 	float GetWidth() const;
 	float GetHeight() const;

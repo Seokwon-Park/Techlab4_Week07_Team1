@@ -12,6 +12,8 @@
 
 constexpr uint32 ObjectSlotBytes = 256;
 
+enum class ELightCullingMode : uint32 { Tiled, Clustered, Tiled25D };
+
 struct FPerObjectConstants
 {
 	FMatrix World;
@@ -35,12 +37,15 @@ struct alignas(16) FViewConstants
 };
 static_assert(sizeof(FViewConstants) == 80, "UberLit.hlsl cbuffer Viewconstants 크기와 맞아야 한다");
 
-constexpr uint32 MaxPointLights = 1024;
-constexpr uint32 MaxSpotLights = 4;
-constexpr uint32 MaxRectLights = 4;
-constexpr uint32 TileSize = 16;
-constexpr uint32 MaxLightsPerTile = 255;
-constexpr uint32 TileStride = MaxLightsPerTile + 1;
+constexpr uint32 MaxLocalLights = 1024;
+
+// 컬링 방식별 셀 크기. Tiled는 슬라이스 1개인 Clustered와 같다.
+constexpr uint32 TiledTileSize = 16;
+constexpr uint32 ClusteredTileSize = 32;
+constexpr uint32 ClusteredSlices = 32;
+// 셀 버퍼 한 칸 = [개수][라이트 번호 x MaxLightsPerCell]. 컬링 CS와 UberLit의 MAX_LIGHTS_PER_CELL과 같아야 한다.
+constexpr uint32 MaxLightsPerCell = 32;
+constexpr uint32 CellStride = MaxLightsPerCell + 1;
 
 // UberLit.hlsl의 cbuffer Lighting과 바이트 단위로 같아야 한다. 모든 구조체를 16바이트 배수로 맞춘다.
 struct FAmbientLightInfo
@@ -96,21 +101,15 @@ struct FRectLightInfo
 	float Padding;
 };
 
-
-
-
 struct alignas(16) FLightingConstants
 {
 	FAmbientLightInfo Ambient;
 	FDirectionalLightInfo Directional;
-	//FPointLightInfo PointLights[MaxPointLights];
-	FSpotLightInfo SpotLights[MaxSpotLights];
-	//FRectLightInfo RectLights[MaxRectLights];
-	uint32 NumPointLights;
-	uint32 NumSpotLights;
-	//uint32 NumRectLights;
-	uint32 Padding[2];
+	uint32 NumLocalLights;
+	uint32 Padding[3];
 };
+static_assert(sizeof(FLightingConstants) == 64);
+
 static_assert(sizeof(FAmbientLightInfo) == 16);
 static_assert(sizeof(FDirectionalLightInfo) == 32);
 static_assert(sizeof(FPointLightInfo) == 48);
@@ -154,15 +153,34 @@ struct alignas(16) FLightCullingConstants
 	FMatrix Projection;
 	FVector2 ViewportSize;
 	uint32 NumTilesX;
-	uint32 NumPointLights;
+	uint32 NumTilesY;
+	uint32 NumLocalLights;
+	uint32 NumSlices;
+	uint32 TileSize;
+	uint32 bOrthographic;
+	float NearZ;
+	float FarZ;
+	float Padding[2];
 };
+static_assert(sizeof(FLightCullingConstants) == 176, "컬링 CS의 cbuffer FLightCullingConstants와 같아야 한다");
 
-struct alignas(16) FTileLightingConstants
+struct alignas(16) FLightGridConstants
 {
 	uint32 NumTilesX;
-	uint32 LightDebugMode;   // 0 = Off, 1 = Heatmap
+	uint32 NumTilesY;
+	uint32 NumSlices;
+	uint32 LightDebugMode;
+	float  NearZ;
+	float  FarZ;
+	float  SliceScale;
+	float  SliceBias;
+	uint32 TileSize;
+	uint32 bOrthographic;
 	uint32 Padding[2];
 };
+static_assert(sizeof(FLightGridConstants) == 48, "UberLit의 cbuffer LightGrid와 같아야 한다");
+
+struct FLightRenderParameters;
 
 class FRenderer
 {
@@ -193,6 +211,8 @@ public:
 	// CameraWorldPos는 ViewProjection과 함께 b0에 올라가 Specular 계산(V 벡터)에 쓰인다.
 	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraWorldPos);
 
+	void RenderDepth();
+
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.
 	// GPU 결과를 기다리므로 매우 느리다. 버튼 등으로 한 프레임만 실행할 것.
@@ -202,7 +222,7 @@ public:
 	void EndObjectConstants();
 
 	//void SetFireBallLight(const FFireBallLightConstants& LightConstants);
-	void SetLighting(FLightingConstants& LightingConstants, const TArray<FPointLightInfo>& InPointLights, const TArray<FSpotLightInfo>& InSpotLights);
+	void SetLighting(FLightingConstants& LightingConstants, const TArray<FLightRenderParameters>& InLocalLights);
 
 	// 이후 그리는 UberLit 머티리얼이 쓸 조명 모델. View마다 RenderOpaque 전에 설정한다.
 	void SetViewMode(EViewMode InViewMode);
@@ -212,6 +232,7 @@ public:
 
 	// public
 	void SetLightDebugMode(uint32 Mode);
+	void SetLightCullingMode(ELightCullingMode Mode) { LightCullingMode = Mode; }
 private:
 	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
 	void DrawStaticGroups();
@@ -224,8 +245,9 @@ private:
 
 private:
 	// private
-	TUniquePtr<FConstantBuffer> TileLightingCB{};
+	TUniquePtr<FConstantBuffer> GridLightingCB{};
 	uint32 LightDebugMode{};
+	ELightCullingMode LightCullingMode = ELightCullingMode::Clustered;
 
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
 	FRenderQueue RenderPackets;
@@ -262,12 +284,8 @@ private:
 	TUniquePtr<FConstantBuffer> LightCullingCB{};
 
 	TUniquePtr<FStructuredBuffer> TileIndexBuffer{};
-	TUniquePtr<FStructuredBuffer> PointLightBuffer{};
-	TUniquePtr<FStructuredBuffer> SpotLightBuffer{};
-
-	FComputeShader* LightCullingCS{};
-
-	uint32 NumPointLightsThisFrame{};
+	TUniquePtr<FStructuredBuffer> LocalLightBuffer{};
+	uint32 NumLocalLightsThisFrame = 0;
 
 	EViewMode CurrentViewMode = EViewMode::Lit_Lambert;
 };

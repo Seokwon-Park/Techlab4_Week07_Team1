@@ -15,6 +15,11 @@ public:
 	virtual ELightType GetLightType() const = 0;
 	virtual void DrawDebug(FLineBatcher* LineBatcher) const;
 
+	virtual class FLightSceneProxy* CreateSceneProxy() const
+	{
+		return NULL;
+	}
+	FLightSceneProxy* SceneProxy = nullptr;
 protected:
 	virtual bool ShouldCreateRenderState() const override
 	{ return true; }
@@ -22,5 +27,6 @@ protected:
 	virtual void CreateRenderState() override;
 	virtual void DestroyRenderState() override;
 private:
+
 
 };

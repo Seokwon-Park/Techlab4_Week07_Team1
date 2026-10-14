@@ -1,6 +1,8 @@
 #include "EnginePCH.h"
 #include "Components/SpotLightComponent.h"
 
+#include "Engine/SpotLightSceneProxy.h"
+
 #include "Render/LineBatcher.h"
 #include "Math/Color.h"
 
@@ -72,6 +74,11 @@ namespace
 			LineBatcher->AddLine(Apex, Point, ColorVec);
 		}
 	}
+}
+
+FLightSceneProxy* USpotLightComponent::CreateSceneProxy() const
+{
+	return new FSpotLightSceneProxy(this);
 }
 
 void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const

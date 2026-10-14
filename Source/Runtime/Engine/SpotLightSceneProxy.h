@@ -5,6 +5,6 @@
 class FSpotLightSceneProxy : public FPointLightSceneProxy
 {
 public:
-    explicit FSpotLightSceneProxy(USpotLightComponent* InComponent);
-    void GetLocalLightInfo(FLocalLightInfo& Out) const override;
+    using FPointLightSceneProxy::FPointLightSceneProxy;
+    virtual void GetLightShaderParameters(FLightRenderParameters& Out) const override;
 };
