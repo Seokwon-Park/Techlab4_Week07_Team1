@@ -321,6 +321,97 @@ namespace
 		return Override;
 	}
 
+	bool SetMaterialTexture(UMeshComponent* MeshComponent, int32 MaterialSlot, int32 TextureSlot, UTexture2D* Texture, UMaterial*& Effective, UMaterial*& Override) {
+		UTexture2D* Current{ Effective && Effective->Textures.IsValidIndex(TextureSlot) ? Effective->Textures[TextureSlot] : nullptr };
+		if (Current == Texture) {
+			return false;
+		}
+
+		Override = EnsureMaterialOverride(MeshComponent, MaterialSlot, Effective, Override);
+		if (!Override) {
+			return false;
+		}
+
+		while (!Override->Textures.IsValidIndex(TextureSlot)) {
+			Override->Textures.Add(nullptr);
+		}
+		Override->Textures[TextureSlot] = Texture;
+		Effective = Override;
+		return true;
+	}
+
+	void DrawMaterialTextureSlot(UMeshComponent* MeshComponent, int32 MaterialSlot, int32 TextureSlot, const char* Label, UMaterial*& Effective, UMaterial*& Override) {
+		const float ThumbnailSize{ 64.0f };
+		const float ItemThumbnailSize{ 24.0f };
+		UTexture2D* Texture{ Effective && Effective->Textures.IsValidIndex(TextureSlot) ? Effective->Textures[TextureSlot] : nullptr };
+
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::TextUnformatted(Label);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::PushID(TextureSlot);
+
+		if (Texture && Texture->GetResource()) {
+			ImGui::Image((ImTextureID)Texture->GetResource()->GetSRV(), { ThumbnailSize, ThumbnailSize });
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s", Texture->GetPath().c_str());
+			}
+		} else {
+			ImGui::Button("Empty", { ThumbnailSize, ThumbnailSize });
+		}
+
+		if (ImGui::BeginDragDropTarget()) {
+			if (const ImGuiPayload* Payload{ ImGui::AcceptDragDropPayload(EditorDragDrop::Texture) }) {
+				UTexture2D* DroppedTexture{ *static_cast<UTexture2D**>(Payload->Data) };
+				if (SetMaterialTexture(MeshComponent, MaterialSlot, TextureSlot, DroppedTexture, Effective, Override)) {
+					Texture = DroppedTexture;
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+
+		const FString CurrentPath{ Texture ? Texture->GetPath() : "" };
+		const FString CurrentFileName{ Texture ? GetAssetDisplayName(CurrentPath) : "None" };
+		ImGui::SetNextItemWidth(-1.0f);
+		const bool Open{ ImGui::BeginCombo("##Texture", CurrentFileName.c_str()) };
+		if (ImGui::IsItemHovered() && Texture) {
+			ImGui::SetTooltip("%s", CurrentPath.c_str());
+		}
+
+		if (Open) {
+			if (ImGui::Selectable("None", Texture == nullptr)) {
+				SetMaterialTexture(MeshComponent, MaterialSlot, TextureSlot, nullptr, Effective, Override);
+			}
+
+			for (TObjectIterator<UTexture2D> Iterator{}; Iterator; ++Iterator) {
+				UTexture2D* ItemTexture{ *Iterator };
+				if (!ItemTexture->GetResource() || ItemTexture->GetPath().empty()) {
+					continue;
+				}
+
+				const bool Selected{ ItemTexture == Texture };
+				const FString ItemPath{ ItemTexture->GetPath() };
+				const FString ItemFileName{ GetAssetDisplayName(ItemPath) };
+				ImGui::PushID(ItemTexture);
+				ImGui::Image((ImTextureID)ItemTexture->GetResource()->GetSRV(), { ItemThumbnailSize, ItemThumbnailSize });
+				ImGui::SameLine();
+				if (ImGui::Selectable(ItemFileName.c_str(), Selected, ImGuiSelectableFlags_None, { 0.0f, ItemThumbnailSize })) {
+					SetMaterialTexture(MeshComponent, MaterialSlot, TextureSlot, ItemTexture, Effective, Override);
+				}
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("%s", ItemPath.c_str());
+				}
+				if (Selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+				ImGui::PopID();
+			}
+			ImGui::EndCombo();
+		}
+
+		ImGui::PopID();
+	}
+
 	// 메시 컴포넌트의 머티리얼 슬롯을 한 줄씩 그린다.
 	// 텍스처를 드롭하면 그 슬롯의 덮어쓰기에 반영하고, 메시 에셋의 머티리얼은 건드리지 않는다.
 	void DrawMaterialSlots(UMeshComponent* MeshComponent)
@@ -336,8 +427,6 @@ namespace
 			return;
 		}
 
-		const float ThumbnailSize = 64.0f;
-
 		// 메쉬 내의 매터리얼 별 Slot 순회
 		for (int32 Slot = 0; Slot < NumSlots; ++Slot)
 		{
@@ -348,7 +437,6 @@ namespace
 
 			UMaterial* Override = MeshComponent->GetOverrideMaterial(Slot);
 			UMaterial* Effective = MeshComponent->GetMaterial(Slot);
-			UTexture2D* Texture = (Effective && Effective->Textures.Num() > 0) ? Effective->Textures[0] : nullptr;
 
 			ImGui::SameLine();
 
@@ -376,63 +464,8 @@ namespace
 					ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 110.0f);
 					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					ImGui::Text("Texture");
-
-					ImGui::TableSetColumnIndex(1);
-
-					// 1: 텍스처 썸네일
-					if (Texture && Texture->GetResource())
-					{
-						ImGui::Image((ImTextureID)Texture->GetResource()->GetSRV(), { ThumbnailSize, ThumbnailSize });
-						if (ImGui::IsItemHovered())
-						{
-							ImGui::SetTooltip("%s", Texture->GetPath().c_str());
-						}
-					}
-					else
-					{
-						ImGui::Button("Empty", { ThumbnailSize, ThumbnailSize });
-					}
-					if (ImGui::BeginDragDropTarget())
-					{
-						if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload(EditorDragDrop::Texture))
-						{
-							UTexture2D* DroppedTexture = *static_cast<UTexture2D**>(Payload->Data);
-							Override = EnsureMaterialOverride(MeshComponent, Slot, Effective, Override);
-
-							if (Override)
-							{
-								if (Override->Textures.Num() == 0)
-								{
-									Override->Textures.Add(nullptr);
-								}
-								Override->Textures[0] = DroppedTexture;
-								Texture = DroppedTexture;
-								Effective = Override;
-							}
-						}
-						ImGui::EndDragDropTarget();
-					}
-					ImGui::SameLine();
-
-					// 2: 텍스처 경로
-					if (Texture)
-					{
-						fs::path Path(Texture->GetPath());
-						FString FileName = Path.filename().string();
-
-						ImGui::TextWrapped("%s", FileName.c_str());
-						if (ImGui::IsItemHovered())
-						{
-							ImGui::SetTooltip("%s", Texture->GetPath().c_str());
-						}
-					}
-					else
-					{
-						ImGui::TextDisabled("(Empty)");
-					}
+					DrawMaterialTextureSlot(MeshComponent, Slot, 0, "Texture", Effective, Override);
+					DrawMaterialTextureSlot(MeshComponent, Slot, 1, "Normal Map", Effective, Override);
 
 					ImGui::TableNextRow();
 
