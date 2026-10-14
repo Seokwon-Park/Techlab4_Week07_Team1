@@ -28,14 +28,14 @@ inline void WritePerObjectConstants(uint8* Dest, const FMatrix& World, const FMa
 	std::memcpy(Dest, &Constants, sizeof(Constants));
 }
 
-// b0(Viewconstants)와 바이트 단위로 같아야 한다. View마다 RenderQueueSorting에서 한 번 올린다.
+// b0(ViewConstants)와 바이트 단위로 같아야 한다. View마다 RenderQueueSorting에서 한 번 올린다.
 struct alignas(16) FViewConstants
 {
 	FMatrix ViewProjection;
 	FVector CameraWorldPos;
 	float Padding = 0.0f;
 };
-static_assert(sizeof(FViewConstants) == 80, "UberLit.hlsl cbuffer Viewconstants 크기와 맞아야 한다");
+static_assert(sizeof(FViewConstants) == 80, "UberLit.hlsl cbuffer ViewConstants 크기와 맞아야 한다");
 
 constexpr uint32 MaxLocalLights = 1024;
 
