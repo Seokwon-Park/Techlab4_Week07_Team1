@@ -155,7 +155,7 @@ void FScene::UpdateLights(FRenderer* Renderer)
 
 	FLightingConstants Constants{};
 	Constants.Ambient.Color = FVector(1, 1, 1);
-	Constants.Ambient.Intensity = 0.1f;
+	Constants.Ambient.Intensity = 0.0f;
 
 	for (USkyLightComponent* Sky : SkyLights)            // 기존 Sky 코드 그대로
 	{
