@@ -848,6 +848,7 @@ void UEditorEngine::RenderToneMapPass(const int32 ViewIndex, const FRenderingInf
 
 	//HDR 장면 텍스처를 읽어서 LDR 뷰 텍스처에 ToneMap 결과를 그린다
 	RenderCommand::BeginRenderPass(PassInfo);
+	ToneMapRenderer->SetExposure(SettingsPanel->GetSettings().Exposure);
 	ToneMapRenderer->OnRender(HDRColor, ToneMapMode);
 	RenderCommand::EndRenderPass(PassInfo);
 
