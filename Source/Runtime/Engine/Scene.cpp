@@ -78,71 +78,112 @@ void FScene::RemoveAllPrimitives()
 
 void FScene::AddLight(ULightComponent* Component)
 {
-	if (!Component) return;
-	if (LightComponents.Find(Component) != INDEX_NONE) return;
-	LightComponents.Add(Component);
+	if (!Component || Component->SceneProxy) return;
+
+	FLightSceneProxy* Proxy = Component->CreateSceneProxy();
+	if (!Proxy)
+	{
+		if (USkyLightComponent* Sky = Cast<USkyLightComponent>(Component))
+			if (SkyLights.Find(Sky) == INDEX_NONE) SkyLights.Add(Sky);
+		return;
+	}
+
+	Proxy->Scene = this;
+	Component->SceneProxy = Proxy;
+
+	if (Component->GetLightType() == ELightType::Directional)
+	{
+		Proxy->PackedIndex = DirectionalLightProxies.Num();
+		DirectionalLightProxies.Add(static_cast<FDirectionalLightSceneProxy*>(Proxy));
+	}
+	else
+	{
+		Proxy->PackedIndex = LocalLightProxies.Num();
+		LocalLightProxies.Add(static_cast<FLocalLightSceneProxy*>(Proxy));
+		LocalLightParameters.Add(FLightRenderParameters{});
+	}
 }
 
 void FScene::RemoveLight(ULightComponent* Component)
 {
-	const int32 Index = LightComponents.Find(Component);
-	if (Index != INDEX_NONE)
-		LightComponents.RemoveAtSwap(Index);
+	if (!Component) return;
+
+	FLightSceneProxy* Proxy = Component->SceneProxy;
+	if (!Proxy)
+	{
+		if (USkyLightComponent* Sky = Cast<USkyLightComponent>(Component))
+		{
+			const int32 Found = SkyLights.Find(Sky);
+			if (Found != INDEX_NONE) SkyLights.RemoveAtSwap(Found);
+		}
+		return;
+	}
+
+	const int32 Index = Proxy->PackedIndex;
+	if (Component->GetLightType() == ELightType::Directional)
+	{
+		DirectionalLightProxies.RemoveAtSwap(Index);
+		if (Index < DirectionalLightProxies.Num())
+			DirectionalLightProxies[Index]->PackedIndex = Index;
+	}
+	else
+	{
+		LocalLightProxies.RemoveAtSwap(Index);
+		LocalLightParameters.RemoveAtSwap(Index);      // 두 배열을 같이 움직여야 순서가 맞음
+		if (Index < LocalLightProxies.Num())
+			LocalLightProxies[Index]->PackedIndex = Index;
+	}
+
+	Component->SceneProxy = nullptr;
+	delete Proxy;
 }
 
 void FScene::RemoveAllLights()
 {
-	LightComponents.Reset();
+	for (FLightSceneProxy* Proxy : DirectionalLightProxies) delete Proxy;
+	for (FLightSceneProxy* Proxy : LocalLightProxies)       delete Proxy;
+	DirectionalLightProxies.Reset();
+	LocalLightProxies.Reset();
+	LocalLightParameters.Reset();
+	SkyLights.Reset();
 }
 
 // 등록된 라이트를 셰이더용 상수로 모아 Renderer에 올린다. 컴포넌트 값을 매 프레임 직접 읽으므로 별도 갱신 경로가 필요 없다.
 void FScene::UpdateLights(FRenderer* Renderer)
 {
-	if (!Renderer)
-		return;
+	if (!Renderer) return;
 
 	FLightingConstants Constants{};
-
-	// 앰비언트 컴포넌트가 생기기 전까지는 고정값을 쓴다.
-	Constants.Ambient.Color = FVector(1.0f, 1.0f, 1.0f);
+	Constants.Ambient.Color = FVector(1, 1, 1);
 	Constants.Ambient.Intensity = 0.1f;
 
-	PointLights.Reset();
-	bool bHasDirectional = false;
-	Constants.NumSpotLights = 0;
-	for (ULightComponent* Light : LightComponents)
+	for (USkyLightComponent* Sky : SkyLights)            // 기존 Sky 코드 그대로
 	{
-		if (!Light || !Light->IsVisible())
-			continue;
+		if (!Sky->IsVisible()) continue;
+		const FLinearColor Color(Sky->GetLightColor());
+		Constants.Ambient.Color = FVector(Color.R, Color.G, Color.B);
+		Constants.Ambient.Intensity = Sky->GetIntensity();
+		break;
+	}
 
-		if (UDirectionalLightComponent* Directional = Cast<UDirectionalLightComponent>(Light))
-		{
-			// 셰이더는 한 개만 받으므로 첫 번째 Directional만 쓴다.
-			if (bHasDirectional)
-				continue;
-			bHasDirectional = true;
+	for (FDirectionalLightSceneProxy* Proxy : DirectionalLightProxies)
+	{
+		if (!Proxy->IsVisible()) continue;
+		FLightRenderParameters P;
+		Proxy->GetLightShaderParameters(P);
+		Constants.Directional.Direction = P.Direction;
+		Constants.Directional.Color = P.Color;
+		Constants.Directional.Intensity = P.Intensity;
+		break;                                            // 셰이더는 하나만 받음
+	}
 
-			FTransform Transform;
-			Transform.Rotation = Directional->GetWorldRotation();
-			const FLinearColor Color(Directional->GetLightColor());
-
-			Constants.Directional.Direction = Transform.GetForward();
-			Constants.Directional.Color = FVector(Color.R, Color.G, Color.B);
-			Constants.Directional.Intensity = Directional->GetIntensity();
-		}
-		else if (USkyLightComponent* Sky = Cast<USkyLightComponent>(Light))
-		{
-			const FLinearColor Color(Sky->GetLightColor());
-			Constants.Ambient.Color = FVector(Color.R, Color.G, Color.B);
-			Constants.Ambient.Intensity = Sky->GetIntensity();
-		}
-		else if (USpotLightComponent* Spot = Cast<USpotLightComponent>(Light))
-		{
-			if (Constants.NumSpotLights >= MaxSpotLights) {
-				continue;
-			}
-
-			FTransform Transform;
+	for (FLocalLightSceneProxy* Proxy : LocalLightProxies)
+	{
+		FLightRenderParameters& P = LocalLightParameters[Proxy->PackedIndex];
+		Proxy->GetLightShaderParameters(P);
+		if (!Proxy->IsVisible())
+			P.Radius = 0.0f;                              // 칸은 유지하고 영향만 없앤다
+			/*FTransform Transform;
 			Transform.Rotation = Spot->GetWorldRotation();
 			const FLinearColor Color(Spot->GetLightColor());
 
@@ -192,10 +233,10 @@ void FScene::UpdateLights(FRenderer* Renderer)
 			Info.BarnDoorCos    = std::cos(AngleRad);
 			Info.BarnDoorSin    = std::sin(AngleRad);
 			Info.BarnDoorLength = std::max(Rect->GetBarnDoorLength(), 0.0f);
-		}
+		}*/
 	}
 
-	Renderer->SetLighting(Constants, PointLights, SpotLights);
+	Renderer->SetLighting(Constants, LocalLightParameters);
 }
 
 void FScene::AddFogInfo(uint32 Id, const FFogInfo& FogInfo)

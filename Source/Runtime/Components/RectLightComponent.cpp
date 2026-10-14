@@ -2,6 +2,8 @@
 #include "RectLightComponent.h"
 #include "Render/LineBatcher.h"
 
+#include "Engine/RectLightSceneProxy.h"
+
 URectLightComponent::URectLightComponent() {}
 URectLightComponent::~URectLightComponent() {}
 
@@ -63,4 +65,9 @@ void URectLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
     LineBatcher->AddLine(C2, A2, DoorColor);
     LineBatcher->AddLine(C3, A3, DoorColor);
 
+}
+
+FLightSceneProxy* URectLightComponent::CreateSceneProxy() const
+{
+    return new FRectLightSceneProxy(this);
 }

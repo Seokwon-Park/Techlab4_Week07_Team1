@@ -1,8 +1,14 @@
 #pragma pack_matrix(row_major)
 
-#define TILE_SIZE 16
-#define MAX_LIGHTS_PER_TILE 255
-#define TILE_STRIDE (MAX_LIGHTS_PER_TILE + 1)
+#include "ColorSpace.hlsli"
+
+#define LIGHT_TYPE_POINT 1   // C++ ELightType과 같아야 함
+#define LIGHT_TYPE_SPOT  2
+#define LIGHT_TYPE_RECT  3
+
+// TileBasedLightCulling.hlsl의 MAX_LIGHTS_PER_TILE / TILE_STRIDE와 같아야 한다.
+#define MAX_LIGHTS_PER_CELL 32
+#define CELL_STRIDE (MAX_LIGHTS_PER_CELL + 1)
 
 // 조명 모델은 C++(FRenderResourceManager::LoadUberLit)이 매크로로 하나만 넘긴다.
 // 아무 매크로 없이 컴파일될 때(기존 머티리얼이 쓰는 기본 키)만 Lambert를 켠다.
@@ -11,11 +17,6 @@
     !defined(WORLD_NORMAL)
 #define LIGHTING_MODEL_LAMBERT 1
 #endif
-
-// C++ MaxPointLights / MaxSpotLights와 같아야 한다.
-#define NUM_POINT_LIGHT 4
-#define NUM_SPOT_LIGHT 4
-#define NUM_RECT_LIGHT 4
 
 // 아래 구조체와 cbuffer Lighting은 Renderer.h의 FLightingConstants와 바이트 단위로 같아야 한다.
 struct FAmbientLightInfo
@@ -65,7 +66,7 @@ struct FSpotLightInfo
     float2 Padding;
 };
 
-struct FLocalLightInfo
+struct FLightRenderParameters
 {
     float3 Position;
     float Radius;
@@ -80,6 +81,7 @@ struct FLocalLightInfo
     float HalfHeight;
     uint Type;
 };
+
 
 
 // Renderer.h의 FViewConstants와 바이트 단위로 같아야 한다. VS와 PS 둘 다 b0에 바인딩된다.
@@ -110,22 +112,27 @@ cbuffer Lighting : register(b4)
 {
     FAmbientLightInfo Ambient;
     FDirectionalLightInfo Directional;
-    FSpotLightInfo SpotLights[NUM_SPOT_LIGHT];
-    FRectLightInfo RectLights[NUM_RECT_LIGHT];   
-    uint NumPointLights;
-    uint NumSpotLights;
-    uint NumRectLights;
-    uint LightingPadding;
+    uint NumLocalLights;
+    uint3 LightingPadding;
 };
 
-cbuffer TileLighting : register(b5)
+
+cbuffer LightGrid : register(b5)
 {
     uint NumTilesX;
+    uint NumTilesY;
+    uint NumSlices;
     uint LightDebugMode;
-    uint2 TileLightingPadding;
+    float NearZ;
+    float FarZ;
+    float SliceScale;
+    float SliceBias;
+    uint TileSize;
+    uint bOrthographic;
+    uint2 LightGridPadding;
 };
 
-StructuredBuffer<FPointLightInfo> PointLights : register(t10);
+StructuredBuffer<FLightRenderParameters> LocalLights : register(t10);
 StructuredBuffer<uint> TileLightIndices : register(t12);
 
 Texture2D g_txColor : register(t0);
@@ -161,6 +168,12 @@ struct FLightContribution
     float3 Specular;
 };
 
+// 원뿔 감쇠량
+float SpotConeFactor(FLightRenderParameters S, float3 L)
+{
+    return smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
+}
+
 // L 벡터와 Attenuation을 구한다.
 float LocalLightAttenuation(float3 LightPos, float Radius, float FalloffExp, float3 WorldPos, out float3 L)
 {
@@ -171,17 +184,13 @@ float LocalLightAttenuation(float3 LightPos, float Radius, float FalloffExp, flo
     return Atten;
 }
 
-// 원뿔 감쇠량
-float SpotConeFactor(FSpotLightInfo S, float3 L)
-{
-    return smoothstep(S.OuterConeCos, S.InnerConeCos, dot(-L, S.Direction));
-}
+
 
 // Diffuse와 Specular를 구한다. Radiance = Color * Intensity * Falloff (* ConeFactor)
 FLightContribution ShadeLight(float3 N, float3 L, float3 V, float3 Radiance, float InShininess)
 {
     float3 NDotL = saturate(dot(normalize(N), normalize(L)));
-    FLightContribution Contribution = (FLightContribution)0;
+    FLightContribution Contribution = (FLightContribution) 0;
     Contribution.Diffuse = NDotL;
 
 #if LIGHTING_MODEL_BLINN_PHONG
@@ -211,27 +220,70 @@ FLightContribution CalcDirectional(float3 N, float3 V, float InShininess)
 }
 
 // 해당 WorldPos에서의 각 PointLight의 영향(밝기)를 구한다
-FLightContribution CalcPoint(FPointLightInfo P, float3 N, float3 V, float3 WorldPos, float InShininess)
+FLightContribution CalcPoint(FLightRenderParameters P, float3 N, float3 V, float3 WorldPos, float InShininess)
 {
     float3 L;
-    float Attenuation = LocalLightAttenuation(P.Position, P.Radius, P.FalloffExponent, WorldPos, L);
-    float3 Radiance = P.Color * P.Intensity * Attenuation;
-    return ShadeLight(N, L, V, Radiance, InShininess);
+    const float Atten = LocalLightAttenuation(P.Position, P.Radius, P.FalloffExponent, WorldPos, L);
+    return ShadeLight(N, L, V, P.Color * P.Intensity * Atten, InShininess);
 }
 
 // Spot은 Point에서 ConeFactor만 곱하면 된다
-FLightContribution CalcSpot(FSpotLightInfo S, float3 N, float3 V, float3 WorldPos, float InShininess)
+FLightContribution CalcSpot(FLightRenderParameters S, float3 N, float3 V, float3 WorldPos, float InShininess)
 {
     float3 L;
     float Attenuation = LocalLightAttenuation(S.Position, S.Radius, S.FalloffExponent, WorldPos, L);
-    float3 Radiance = S.Color * S.Intensity * Attenuation * SpotConeFactor(S, L);
-    return ShadeLight(N, L, V, Radiance, InShininess);
+    return ShadeLight(N, L, V, S.Color * S.Intensity * Attenuation * SpotConeFactor(S, L), InShininess);
+}
+
+FLightContribution CalcRect(FLightRenderParameters R, float3 N, float3 V, float3 WorldPos, float InShininess)
+{
+    const float3 D = WorldPos - R.Position;
+    if (dot(D, R.Direction) <= 0.0f)                    // 면광원 뒤쪽
+        return (FLightContribution) 0;
+
+    const float3 Up = cross(R.Direction, R.Right);
+    const float x = clamp(dot(D, R.Right), -R.HalfWidth, R.HalfWidth);
+    const float y = clamp(dot(D, Up), -R.HalfHeight, R.HalfHeight);
+    const float3 SamplePos = R.Position + R.Right * x + Up * y; // 사각형 위에서 가장 가까운 점
+
+    float3 L;
+    const float Atten = LocalLightAttenuation(SamplePos, R.Radius, R.FalloffExponent, WorldPos, L);
+    return ShadeLight(N, L, V, R.Color * R.Intensity * Atten, InShininess);
+}
+
+FLightContribution CalcLocalLight(FLightRenderParameters Light, float3 N, float3 V, float3 WorldPos, float InShininess)
+{
+    FLightContribution Result;
+    if (Light.Type == LIGHT_TYPE_SPOT)
+        Result = CalcSpot(Light, N, V, WorldPos, InShininess);
+    else if (Light.Type == LIGHT_TYPE_RECT)
+        Result = CalcRect(Light, N, V, WorldPos, InShininess);
+    else
+        Result = CalcPoint(Light, N, V, WorldPos, InShininess);
+    return Result;
+}
+
+uint GetSlice(float4 SVPosition)
+{
+    float Slice;
+    if (bOrthographic)
+    {
+        // 직교: SV_Position.z(0~1)가 Near~Far에 선형으로 대응
+        Slice = SVPosition.z * NumSlices;
+    }
+    else
+    {
+        // 원근: SV_Position.w = 클립 공간 w = View 깊이(X)
+        Slice = log(SVPosition.w) * SliceScale + SliceBias;
+    }
+    return (uint) clamp(Slice, 0.0f, NumSlices - 1.0f);
 }
 
 uint GetTileBase(float4 SVPosition)
 {
-    uint2 Tile = (uint2) SVPosition.xy / TILE_SIZE;
-    return (Tile.y * NumTilesX + Tile.x) * TILE_STRIDE;
+    const uint2 Tile = (uint2) SVPosition.xy / TileSize;
+    const uint Slice = GetSlice(SVPosition);
+    return ((Slice * NumTilesY + Tile.y) * NumTilesX + Tile.x) * CELL_STRIDE;
 }
 
 float3 HeatColor(uint Count)
@@ -241,7 +293,7 @@ float3 HeatColor(uint Count)
     if (Count >= 32)
         return float3(1, 1, 1);
 
-    float t = Count / 8.0f;
+    float t = Count / 32.0f;
     return saturate(float3(t * 2 - 0.5, 1 - abs(t * 2 - 1), 1.5 - t * 2));
 }
 
@@ -287,41 +339,33 @@ FLightContribution CalcRect(FRectLightInfo R, float3 N, float3 V, float3 WorldPo
 
 // bTiled = true면 SVPosition이 속한 타일의 PointLight만, false면 전체 PointLight를 순회한다.
 // VS(Gouraud)는 픽셀 위치가 없어 타일을 쓸 수 없으므로 false로 호출한다.
-FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess, float4 SVPosition, bool Tiled) {
+FLightContribution CalcLighting(float3 N, float3 V, float3 WorldPos, float InShininess, float4 SVPosition, bool Tiled)
+{
     // Directional Light는 초기에 한 번만 계산
-    FLightContribution Contribution = { CalcDirectional(N, V, InShininess) };
-    uint PointLightCount = { NumPointLights };
-    uint TileBase = { 0 };
-    bool UseTileList = { false };
-    if (Tiled && NumTilesX > 0 && LightDebugMode != 2) {
+    FLightContribution Contribution = CalcDirectional(N, V, InShininess);
+    
+    uint LightCount = NumLocalLights;
+    uint TileBase = 0;
+    bool UseTileList = false;
+    if (Tiled && NumTilesX > 0 && LightDebugMode != 2)
+    {
         TileBase = GetTileBase(SVPosition);
-        const uint Count = { TileLightIndices[TileBase] };
-        if (Count < MAX_LIGHTS_PER_TILE) {
-            PointLightCount = Count;
+        const uint Count = TileLightIndices[TileBase];
+        if (Count < MAX_LIGHTS_PER_CELL)
+        {
+            LightCount = Count;
             UseTileList = true;
         }
     }
 
-    for (uint Index = { 0 }; Index < PointLightCount; ++Index) {
-        const uint LightIndex = { UseTileList ? TileLightIndices[TileBase + 1 + Index] : Index };
-        const FLightContribution Temp = { CalcPoint(PointLights[LightIndex], N, V, WorldPos, InShininess) };
+    for (uint Index = 0; Index < LightCount; ++Index)
+    {
+        const uint LightIndex = UseTileList ? TileLightIndices[TileBase + 1 + Index] : Index;
+        const FLightContribution Temp = CalcLocalLight(LocalLights[LightIndex], N, V, WorldPos, InShininess);
         Contribution.Diffuse += Temp.Diffuse;
         Contribution.Specular += Temp.Specular;
     }
-    // 모든 SpotLight의 Contribution을 누적
-    for (uint s = 0; s < NumSpotLights; ++s)
-    {
-        FLightContribution Temp = CalcSpot(SpotLights[s], N, V, WorldPos, InShininess);
-        Contribution.Diffuse += Temp.Diffuse;
-        Contribution.Specular += Temp.Specular;
-    }
-    // 모든 RectLight의 Contribution을 누적
-    for (uint r = 0; r < NumRectLights; ++r)
-    {
-        FLightContribution Temp = CalcRect(RectLights[r], N, V, WorldPos, InShininess);
-        Contribution.Diffuse  += Temp.Diffuse;
-        Contribution.Specular += Temp.Specular;
-    }
+
     return Contribution;
 }
 
@@ -348,13 +392,27 @@ PS_INPUT mainVS(VS_INPUT Input)
     return Output;
 }
 
-float4 mainPS(PS_INPUT Input) : SV_TARGET {
-    const float2 UV = { Input.uv + UVOffset };
-    const float4 Albedo = { g_txColor.Sample(g_Sample, UV) * BaseColor };
+float4 mainPS(PS_INPUT Input) : SV_TARGET
+{
+    const float2 UV = Input.uv + UVOffset;
+    const float4 TexColor = g_txColor.Sample(g_Sample, UV);
+    float4 Albedo = TexColor * BaseColor;
 #if !defined(EDITOR_ARROW_SHADER)
-    if (LightDebugMode == 1 && NumTilesX > 0) {
-        const uint Count = { TileLightIndices[GetTileBase(Input.position)] };
+    // 씬은 HDR 타깃에 선형으로 쌓이므로 sRGB로 인코딩된 디퓨즈 텍스처와 BaseColor를 각각 선형으로 바꾼다.
+    // 에디터 화살표는 톤 매핑 이후 LDR 타깃에 그려지므로 sRGB 그대로 둔다.
+    Albedo.rgb = SRGBToLinear(TexColor.rgb) * SRGBToLinear(BaseColor.rgb);
+
+    if (LightDebugMode == 1 && NumTilesX > 0)
+    {
+        const uint Count = TileLightIndices[GetTileBase(Input.position)];
         return float4(lerp(Albedo.rgb * 0.2f, HeatColor(Count), 0.7f), 1.0f);
+    }
+    // 슬라이스 시각화: 이웃 슬라이스끼리 색이 크게 달라지도록 황금비로 색상환을 돈다.
+    if (LightDebugMode == 3 && NumTilesX > 0)
+    {
+        const float Hue = frac(GetSlice(Input.position) * 0.618034f);
+        const float3 SliceColor = saturate(abs(frac(Hue + float3(0.0f, 2.0f, 1.0f) / 3.0f) * 6.0f - 3.0f) - 1.0f);
+        return float4(lerp(Albedo.rgb * 0.2f, SliceColor, 0.7f), 1.0f);
     }
 #endif
 

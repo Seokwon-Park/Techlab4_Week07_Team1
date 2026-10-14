@@ -5,6 +5,6 @@
 class FRectLightSceneProxy : public FLocalLightSceneProxy
 {
 public:
-    //explicit FRectLightSceneProxy(URectLightComponent* InComponent);
-    //void GetLocalLightInfo(FLocalLightInfo& Out) const override;
-};
+    using FLocalLightSceneProxy::FLocalLightSceneProxy;
+    void GetLightShaderParameters(FLightRenderParameters& Out) const override;
+}; 

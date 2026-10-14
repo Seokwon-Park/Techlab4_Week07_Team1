@@ -1,10 +1,17 @@
 #include "EnginePCH.h"
 #include "PointLightComponent.h"
 
+#include "Engine/PointLightSceneProxy.h"
+
 #include "Render/LineBatcher.h"
 
 UPointLightComponent::UPointLightComponent() : LightFalloffExponent(1.0f) {}
 UPointLightComponent::~UPointLightComponent() {}
+
+FLightSceneProxy* UPointLightComponent::CreateSceneProxy() const
+{
+    return new FPointLightSceneProxy(this);
+}
 
 namespace
 {

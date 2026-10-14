@@ -17,6 +17,8 @@ public:
 	USpotLightComponent() = default;
 	virtual ~USpotLightComponent() override = default;
 
+	virtual FLightSceneProxy* CreateSceneProxy() const override;
+
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 	ELightType GetLightType() const override { return ELightType::Spot; }
 

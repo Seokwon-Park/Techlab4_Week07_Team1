@@ -20,6 +20,7 @@ struct FEditorSettings
 	bool bDrawBatchLine = true;
 	bool bDrawPSGrid = false;
 	bool bEnableFXAA = true;
+	float Exposure = 1.0f;	// 톤 매핑 전에 HDR 색에 곱하는 노출 값
 	bool bDepthView = false;
 	bool bExponentialHeightFog = true;
 	
@@ -46,6 +47,7 @@ struct FEditorSettings
 	int32 LightingModel = 1;	// 0 Gouraud 1 Lambert 2 Blinn-Phong
 
 	int32 LightDebugMode = 0;
+	int32 LightCullingMode = 1;	// ELightCullingMode: 0 Tiled 1 Clustered
 };
 
 
